@@ -211,9 +211,15 @@ export const ProtectedRoute = ({ children, isLoginPage = false }) => {
             return;
         }
 
-        // Not authenticated
-        if (!loading && !user) {
+        // Not authenticated — only redirect when there is no session token
+        const hasToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        if (!loading && !user && !hasToken) {
             window.location.replace("/login");
+            return;
+        }
+
+        if (!loading && !user && hasToken) {
+            setCanRender(true);
             return;
         }
 

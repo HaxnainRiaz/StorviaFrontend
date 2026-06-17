@@ -20,13 +20,23 @@ export default function ClientLayoutShell({ children }) {
     const pathname = usePathname();
     const [isLoginPage, setIsLoginPage] = useState(false);
     const [isPublicPage, setIsPublicPage] = useState(false);
+    const [isEmbedFrame, setIsEmbedFrame] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return new URLSearchParams(window.location.search).get("embed") === "1";
+    });
 
     useEffect(() => {
         const authPath = ['/login', '/signup', '/forgot-password'].includes(pathname);
         const publicPath = ['/', '/features', '/pricing', '/examples', '/contact'].includes(pathname) || pathname?.startsWith('/store/');
+        const embed = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embed') === '1';
         setIsLoginPage(authPath);
         setIsPublicPage(publicPath || authPath);
+        setIsEmbedFrame(embed);
     }, [pathname]);
+
+    if (isEmbedFrame) {
+        return <>{children}</>;
+    }
 
     const layoutContent = (
         <SidebarWrapper isLoginPage={isPublicPage}>

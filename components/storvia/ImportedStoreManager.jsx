@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import toast from "react-hot-toast";
 import {
     Upload, Eye, Map, Palette, Navigation, Image as ImageIcon,
@@ -11,6 +11,7 @@ import {
     HelpCircle, Paintbrush, Lock, Zap
 } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
+import { resolveAssetUrl } from "@/lib/storeUrl";
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 const TABS = [
@@ -21,7 +22,7 @@ const TABS = [
     { id: "colors",      label: "Colors",         icon: Paintbrush },
     { id: "navigation",  label: "Navigation",     icon: Navigation },
     { id: "products",    label: "Products",       icon: ShoppingBag },
-    { id: "links",       label: "Link Management", icon: Link2 },
+    { id: "links",       label: "Route Map", icon: Link2 },
     { id: "seo",         label: "SEO",            icon: Search },
     { id: "preview",     label: "Preview",        icon: Eye },
     { id: "versions",    label: "Versions",       icon: History },
@@ -398,65 +399,160 @@ function TabImages({ storefrontId, adminRequest }) {
     const [images, setImages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState({});
+    const [filterPage, setFilterPage] = useState("all");
+    const [search, setSearch] = useState("");
     const fileRefs = useRef({});
 
-    useEffect(() => {
-        const load = async () => {
-            const res = await adminRequest("/seller/managed-storefront/images");
-            setLoading(false);
-            if (res?.success) setImages(res.data || []);
-        };
-        load();
+    const loadImages = useCallback(async () => {
+        setLoading(true);
+        const res = await adminRequest("/seller/managed-storefront/images");
+        setLoading(false);
+        if (res?.success) setImages(res.data || []);
     }, [adminRequest]);
 
-    const replaceImage = async (imageId, file) => {
-        setSaving(prev => ({ ...prev, [imageId]: true }));
+    useEffect(() => { loadImages(); }, [loadImages]);
+
+    const pageOptions = useMemo(() => {
+        const pages = new Map();
+        images.forEach((img) => {
+            if (img.pageId) pages.set(img.pageId, img.pageTitle || img.pageId);
+        });
+        return Array.from(pages.entries());
+    }, [images]);
+
+    const filteredImages = useMemo(() => {
+        return images.filter((img) => {
+            const matchesPage = filterPage === "all" || img.pageId === filterPage;
+            const hay = `${img.alt || ""} ${img.originalName || ""} ${img.pageTitle || ""} ${img.sectionLabel || ""}`.toLowerCase();
+            const matchesSearch = !search.trim() || hay.includes(search.trim().toLowerCase());
+            return matchesPage && matchesSearch;
+        });
+    }, [images, filterPage, search]);
+
+    const displayUrl = (img) => resolveAssetUrl(img.replacedUrl || img.originalUrl);
+
+    const replaceImage = async (imageId, file, pageId, sectionId) => {
+        if (String(imageId).startsWith("asset_")) {
+            toast.error("Pick a mapped slot below to replace. Library assets are read-only references.");
+            return;
+        }
+        setSaving((prev) => ({ ...prev, [imageId]: true }));
         const fd = new FormData();
         fd.append("image", file);
         fd.append("imageId", imageId);
+        if (pageId) fd.append("pageId", pageId);
+        if (sectionId) fd.append("sectionId", sectionId);
         const res = await adminRequest("/seller/managed-storefront/image", "PATCH", fd);
-        setSaving(prev => ({ ...prev, [imageId]: false }));
+        setSaving((prev) => ({ ...prev, [imageId]: false }));
         if (res?.success) {
             toast.success("Image replaced.");
-            setImages(prev => prev.map(img => img.imageId === imageId ? { ...img, replacedUrl: res.data?.url } : img));
+            await loadImages();
+            window.dispatchEvent(new Event("storvia:store-updated"));
         } else {
             toast.error(res?.message || "Failed to replace image.");
         }
     };
 
-    if (loading) return <div className="flex items-center gap-2 py-10 text-sm font-bold text-[#64748B]"><Loader2 className="animate-spin" size={18} /> Loading images…</div>;
+    if (loading) {
+        return (
+            <div className="flex items-center gap-2 py-10 text-sm font-bold text-[#64748B]">
+                <Loader2 className="animate-spin" size={18} /> Loading images…
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-5">
             <Banner icon={Info} color="blue">
-                Replace images from your imported design with your own brand photos. Only images are replaceable — layout is fixed.
+                All images detected in your imported design appear here. Replace any image with your brand photo — changes apply to draft and live store after publish.
             </Banner>
-            {images.length === 0 ? (
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        onClick={() => setFilterPage("all")}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${filterPage === "all" ? "bg-[#1E8AF7] text-white" : "border border-[#E2E8F0] bg-white text-[#64748B]"}`}
+                    >
+                        All ({images.length})
+                    </button>
+                    {pageOptions.map(([id, title]) => (
+                        <button
+                            key={id}
+                            onClick={() => setFilterPage(id)}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${filterPage === id ? "bg-[#1E8AF7] text-white" : "border border-[#E2E8F0] bg-white text-[#64748B]"}`}
+                        >
+                            {title}
+                        </button>
+                    ))}
+                </div>
+                <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search images…"
+                    className="h-9 w-full sm:w-48 rounded-lg border border-[#E2E8F0] bg-[#F8FBFF] px-3 text-xs font-semibold outline-none focus:border-[#1E8AF7]"
+                />
+            </div>
+
+            {filteredImages.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-[#E2E8F0] p-8 text-center">
                     <ImageIcon className="mx-auto h-8 w-8 text-[#94A3B8]" />
-                    <p className="mt-2 text-sm font-bold text-[#64748B]">No images found in imported design.</p>
+                    <p className="mt-2 text-sm font-bold text-[#64748B]">No images found.</p>
+                    <p className="mt-1 text-xs text-[#94A3B8]">Import a design package or adjust your filters.</p>
                 </div>
             ) : (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {images.map(img => (
-                        <div key={img.imageId} className="rounded-xl border border-[#E2E8F0] bg-white overflow-hidden">
-                            <div className="aspect-video w-full bg-[#F8FBFF] flex items-center justify-center overflow-hidden">
-                                {(img.replacedUrl || img.originalUrl) ? (
-                                    <img src={img.replacedUrl || img.originalUrl} alt={img.alt || "Design image"} className="h-full w-full object-cover" />
-                                ) : (
-                                    <ImageIcon className="h-8 w-8 text-[#CBD5E1]" />
-                                )}
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {filteredImages.map((img) => {
+                        const isLibrary = img.isLibraryAsset;
+                        const url = displayUrl(img);
+                        return (
+                            <div key={`${img.pageId}_${img.imageId}`} className="rounded-xl border border-[#E2E8F0] bg-white overflow-hidden shadow-sm">
+                                <div className="relative aspect-[4/3] w-full bg-[#F8FBFF]">
+                                    <img
+                                        src={url}
+                                        alt={img.alt || img.originalName || "Design image"}
+                                        className="h-full w-full object-contain p-2"
+                                        onError={(e) => { e.currentTarget.src = "https://placehold.co/400x300?text=Image+unavailable"; }}
+                                    />
+                                    {img.replacedUrl && (
+                                        <span className="absolute top-2 right-2 rounded-full bg-[#16A34A] px-2 py-0.5 text-[10px] font-black text-white">Replaced</span>
+                                    )}
+                                    {isLibrary && (
+                                        <span className="absolute top-2 left-2 rounded-full bg-[#64748B] px-2 py-0.5 text-[10px] font-black text-white">Asset</span>
+                                    )}
+                                </div>
+                                <div className="space-y-2 border-t border-[#E2E8F0] p-3">
+                                    <p className="text-xs font-black text-[#0F172A] truncate">{img.alt || img.originalName || "Image"}</p>
+                                    <p className="text-[10px] font-semibold text-[#94A3B8] truncate">
+                                        {img.pageTitle || img.pageId}{img.sectionLabel ? ` · ${img.sectionLabel}` : ""}
+                                    </p>
+                                    {!isLibrary && (
+                                        <>
+                                            <input
+                                                ref={(el) => { fileRefs.current[img.imageId] = el; }}
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    if (e.target.files?.[0]) {
+                                                        replaceImage(img.imageId, e.target.files[0], img.pageId, img.sectionId);
+                                                        e.target.value = "";
+                                                    }
+                                                }}
+                                            />
+                                            <button
+                                                onClick={() => fileRefs.current[img.imageId]?.click()}
+                                                disabled={saving[img.imageId]}
+                                                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-[#F8FBFF] py-2 text-[11px] font-black text-[#0F172A] hover:border-[#1E8AF7] disabled:opacity-60"
+                                            >
+                                                {saving[img.imageId] ? <Loader2 size={12} className="animate-spin" /> : <ImageIcon size={12} />}
+                                                Replace Image
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
                             </div>
-                            <div className="p-3">
-                                <p className="text-[11px] font-black text-[#0F172A] truncate">{img.alt || img.originalName || "Image"}</p>
-                                {img.replacedUrl && <p className="text-[10px] text-[#16A34A] font-bold">✓ Replaced</p>}
-                                <input ref={el => { fileRefs.current[img.imageId] = el; }} type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) replaceImage(img.imageId, e.target.files[0]); }} />
-                                <button onClick={() => fileRefs.current[img.imageId]?.click()} disabled={saving[img.imageId]} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-[#F8FBFF] py-2 text-[11px] font-black text-[#0F172A] hover:border-[#1E8AF7] disabled:opacity-60">
-                                    {saving[img.imageId] ? <Loader2 size={12} className="animate-spin" /> : <ImageIcon size={12} />} Replace Image
-                                </button>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>
@@ -642,40 +738,37 @@ function TabProducts({ adminRequest }) {
 
 // ─── TAB: SEO ─────────────────────────────────────────────────────────────────
 
-// ─── TAB: Link Management ────────────────────────────────────────────────────────────────────────────────────
+// ─── TAB: Route Map ───────────────────────────────────────────────────────────
 const STORIVA_ROUTE_SUGGESTIONS = [
-    { label: "Home",            value: "/" },
-    { label: "Product Catalog", value: "/products" },
-    { label: "About Us",        value: "/about" },
-    { label: "Contact",         value: "/contact" },
-    { label: "Cart",            value: "/cart" },
-    { label: "Checkout",        value: "/checkout" },
-    { label: "My Orders",       value: "/orders" },
-    { label: "Blog",            value: "/blog" },
-    { label: "FAQ",             value: "/faq" },
-    { label: "Privacy Policy",  value: "/privacy" },
-    { label: "Terms of Service",value: "/terms" },
+    { label: "Home", value: "/" },
+    { label: "Product catalog", value: "/products" },
+    { label: "About (custom page)", value: "/pages/about" },
+    { label: "Contact", value: "/contact" },
+    { label: "Cart", value: "/cart" },
+    { label: "Checkout", value: "/checkout" },
+    { label: "Track order", value: "/order-tracking" },
+    { label: "FAQ (custom page)", value: "/pages/faq" },
+    { label: "Wishlist (custom page)", value: "/pages/wishlist" },
+    { label: "Privacy (custom page)", value: "/pages/privacy-policy" },
+    { label: "Terms (custom page)", value: "/pages/terms" },
+    { label: "Custom page", value: "/pages/your-page" },
 ];
 
 function TabLinks({ adminRequest }) {
-    const [data, setData] = useState({ pages: [], links: [] });
+    const [data, setData] = useState({ pages: [], links: [], uniqueRoutes: [], stats: {} });
     const [loadingLinks, setLoadingLinks] = useState(true);
     const [dirty, setDirty] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [activePageId, setActivePageId] = useState(null);
+    const [autoMapping, setAutoMapping] = useState(false);
 
-    useEffect(() => {
-        const load = async () => {
-            setLoadingLinks(true);
-            const res = await adminRequest("/seller/managed-storefront/links");
-            if (res?.success) {
-                setData(res.data || { pages: [], links: [] });
-                if (res.data?.pages?.length) setActivePageId(res.data.pages[0].id);
-            }
-            setLoadingLinks(false);
-        };
-        load();
-    }, [adminRequest]);
+    const load = async () => {
+        setLoadingLinks(true);
+        const res = await adminRequest("/seller/managed-storefront/links");
+        if (res?.success) setData(res.data || { pages: [], links: [], uniqueRoutes: [], stats: {} });
+        setLoadingLinks(false);
+    };
+
+    useEffect(() => { load(); }, [adminRequest]);
 
     const updatePageRoute = (pageId, route) => {
         setData(prev => ({
@@ -685,38 +778,40 @@ function TabLinks({ adminRequest }) {
         setDirty(true);
     };
 
-    const updateLinkRoute = (fromPage, toPage, route) => {
-        setData(prev => ({
-            ...prev,
-            links: prev.links.map(l =>
-                l.fromPage === fromPage && l.toPage === toPage
-                    ? { ...l, storivaRoute: route, storivaMapped: !!route }
-                    : l
-            )
-        }));
-        setDirty(true);
+    const autoMapAll = async () => {
+        setAutoMapping(true);
+        const res = await adminRequest("/seller/managed-storefront/route-map/auto-generate", "POST");
+        setAutoMapping(false);
+        if (res?.success) {
+            toast.success("All routes auto-mapped.");
+            await load();
+            setDirty(false);
+        } else {
+            toast.error("Could not auto-map routes.");
+        }
     };
 
     const save = async () => {
         setSaving(true);
         const pageMappings = data.pages.map(p => ({ pageId: p.id, storivaRoute: p.storivaRoute || "" }));
-        const linkMappings = data.links.map(l => ({
-            fromPage: l.fromPage, toPage: l.toPage, storivaRoute: l.storivaRoute || ""
-        }));
-        const res = await adminRequest("/seller/managed-storefront/links", "PATCH", { pageMappings, linkMappings });
+        const res = await adminRequest("/seller/managed-storefront/links", "PATCH", { pageMappings });
         setSaving(false);
-        if (res?.success) { toast.success("Link mappings saved."); setDirty(false); }
-        else toast.error("Failed to save link mappings.");
+        if (res?.success) {
+            toast.success("Route map saved.");
+            setDirty(false);
+            await load();
+        } else {
+            toast.error("Failed to save route map.");
+        }
     };
 
-    const activePage = data.pages.find(p => p.id === activePageId);
-    const activePageFile = activePage ? (activePage.fileName || (activePage.id === "home" ? "index.html" : activePage.id + ".html")) : "";
-    const activeLinks = data.links.filter(l => l.fromPage === activePageFile);
-    const mappedCount = data.links.filter(l => l.storivaMapped && l.storivaRoute).length;
+    const stats = data.stats || {};
+    const mappedCount = stats.mappedLinks ?? data.links.filter(l => l.storivaRoute).length;
+    const totalLinks = stats.totalLinks ?? data.links.length;
 
     if (loadingLinks) return (
         <div className="flex items-center justify-center gap-3 py-20 text-sm font-bold text-[#64748B]">
-            <Loader2 className="animate-spin h-5 w-5" /> Loading link data…
+            <Loader2 className="animate-spin h-5 w-5" /> Loading route map…
         </div>
     );
 
@@ -724,29 +819,41 @@ function TabLinks({ adminRequest }) {
         <div className="rounded-2xl border border-dashed border-[#E2E8F0] bg-[#F8FBFF] p-10 text-center">
             <Link2 className="mx-auto mb-3 h-8 w-8 text-[#CBD5E1]" />
             <p className="text-sm font-bold text-[#64748B]">No pages detected yet</p>
-            <p className="mt-1 text-xs text-[#94A3B8]">Upload and convert a design ZIP first. Storiva will automatically detect all HTML pages and their internal links.</p>
+            <p className="mt-1 text-xs text-[#94A3B8]">Upload and convert a design ZIP first. Storiva will detect your HTML pages and map navigation automatically.</p>
         </div>
     );
 
     return (
         <div className="space-y-5">
             <Banner icon={Link2} color="blue">
-                <strong>Automatic link detection.</strong> Storiva found <strong>{data.pages.length}</strong> page{data.pages.length !== 1 ? "s" : ""} and <strong>{data.links.length}</strong> internal link{data.links.length !== 1 ? "s" : ""} in your uploaded design. Map each to a Storiva route so navigation works correctly on your live store. <strong>{mappedCount}/{data.links.length}</strong> links mapped.
+                <strong>What this does:</strong> Your imported HTML uses filenames like <code>about.html</code> and <code>shop.html</code>. Storiva needs each page mapped to a real store URL (e.g. <code>/pages/about</code>, <code>/products</code>). Once mapped here, the same route applies to every nav link across all pages — you do not map each link separately.
+                {totalLinks > 0 && (
+                    <> <strong>{mappedCount}/{totalLinks}</strong> navigation links covered from <strong>{data.pages.length}</strong> page routes.</>
+                )}
             </Banner>
 
-            {/* Pages list */}
+            <div className="flex flex-wrap items-center gap-3">
+                <button
+                    type="button"
+                    onClick={autoMapAll}
+                    disabled={autoMapping}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#1E8AF7] px-4 py-2 text-xs font-bold text-white hover:bg-[#1570CD] disabled:opacity-60"
+                >
+                    {autoMapping ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    Auto-map all routes
+                </button>
+                <p className="text-[11px] text-[#64748B]">Detects page types and assigns Storiva URLs. Publish after saving.</p>
+            </div>
+
             <div>
-                <p className="mb-2 text-xs font-black text-[#0F172A]">Detected pages — click a page to see its links</p>
+                <p className="mb-2 text-xs font-black text-[#0F172A]">Imported pages → Storiva routes</p>
                 <div className="space-y-2">
                     {data.pages.map(page => {
                         const pageFile = page.fileName || (page.id === "home" ? "index.html" : page.id + ".html");
-                        const linksFromPage = data.links.filter(l => l.fromPage === pageFile);
-                        const mappedFromPage = linksFromPage.filter(l => l.storivaMapped && l.storivaRoute).length;
                         return (
                             <div
                                 key={page.id}
-                                onClick={() => setActivePageId(page.id)}
-                                className={"flex flex-col gap-3 rounded-xl border p-4 cursor-pointer transition sm:flex-row sm:items-center " + (activePageId === page.id ? "border-[#1E8AF7] bg-[#EFF6FF]" : "border-[#E2E8F0] bg-white hover:border-[#93C5FD]")}
+                                className="flex flex-col gap-3 rounded-xl border border-[#E2E8F0] bg-white p-4 sm:flex-row sm:items-center"
                             >
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap">
@@ -755,15 +862,14 @@ function TabLinks({ adminRequest }) {
                                         {page.storivaRoute && <span className="flex items-center gap-1 rounded bg-[#E0F2FE] px-2 py-0.5 text-[10px] font-bold text-[#0369A1]"><CheckCircle2 size={10} /> {page.storivaRoute}</span>}
                                     </div>
                                     <p className="mt-0.5 text-[11px] text-[#64748B]">{page.title}</p>
-                                    <p className="mt-0.5 text-[10px] text-[#94A3B8]">{linksFromPage.length} link{linksFromPage.length !== 1 ? "s" : ""} detected {linksFromPage.length > 0 ? "(• " + mappedFromPage + "/" + linksFromPage.length + " mapped)" : ""}</p>
                                 </div>
-                                <div className="flex items-center gap-2 sm:w-60 shrink-0" onClick={e => e.stopPropagation()}>
+                                <div className="flex items-center gap-2 sm:w-64 shrink-0">
                                     <input
                                         type="text"
                                         list={"routes-" + page.id}
                                         value={page.storivaRoute || ""}
                                         onChange={e => updatePageRoute(page.id, e.target.value)}
-                                        placeholder={page.id === "home" ? "/" : ("/" + (page.slug || page.id))}
+                                        placeholder={page.id === "home" ? "/" : `/pages/${page.slug || page.id}`}
                                         className="h-9 w-full rounded-lg border border-[#E2E8F0] bg-[#F8FBFF] px-3 text-xs font-bold text-[#0F172A] outline-none focus:border-[#1E8AF7] focus:bg-white"
                                     />
                                     <datalist id={"routes-" + page.id}>
@@ -776,77 +882,27 @@ function TabLinks({ adminRequest }) {
                 </div>
             </div>
 
-            {/* Links for the selected page */}
-            {activePage && (
-                <div>
-                    <p className="mb-2 text-xs font-black text-[#0F172A]">
-                        Links from <code className="rounded bg-[#F1F5F9] px-1.5 py-0.5 text-[11px] font-mono text-[#1E8AF7]">{activePageFile}</code>
-                        {activeLinks.length === 0 && <span className="ml-2 font-semibold text-[#94A3B8]">(no internal links detected in this page)</span>}
-                    </p>
-                    {activeLinks.length > 0 && (
-                        <div className="space-y-2">
-                            {activeLinks.map((link, i) => (
-                                <div key={i} className="flex flex-col gap-2 rounded-xl border border-[#E2E8F0] bg-white p-3 sm:flex-row sm:items-center">
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-bold text-[#0F172A] truncate">{link.label || link.toPage}</p>
-                                        <p className="mt-0.5 flex items-center gap-1 text-[10px] text-[#94A3B8]">
-                                            <span>Original:</span>
-                                            <code className="rounded bg-[#F8FBFF] px-1 font-mono text-[#64748B]">{link.toPage}</code>
-                                            {link.storivaRoute && <><ArrowRight size={10} className="text-[#0369A1]" /><code className="rounded bg-[#E0F2FE] px-1 font-mono text-[#0369A1]">{link.storivaRoute}</code></>}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2 sm:w-60 shrink-0">
-                                        <input
-                                            type="text"
-                                            list={"link-routes-" + i}
-                                            value={link.storivaRoute || ""}
-                                            onChange={e => updateLinkRoute(link.fromPage, link.toPage, e.target.value)}
-                                            placeholder="Map to Storiva route…"
-                                            className="h-9 w-full rounded-lg border border-[#E2E8F0] bg-[#F8FBFF] px-3 text-xs font-bold text-[#0F172A] outline-none focus:border-[#1E8AF7] focus:bg-white"
-                                        />
-                                        <datalist id={"link-routes-" + i}>
-                                            {STORIVA_ROUTE_SUGGESTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                                        </datalist>
-                                        {link.storivaRoute ? <CheckCircle2 size={16} className="shrink-0 text-[#22C55E]" /> : <AlertTriangle size={16} className="shrink-0 text-[#F59E0B]" />}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Full link table summary */}
-            {data.links.length > 0 && (
+            {data.uniqueRoutes?.length > 0 && (
                 <details className="rounded-xl border border-[#E2E8F0]">
                     <summary className="flex cursor-pointer items-center justify-between gap-3 p-4 text-xs font-black text-[#0F172A] hover:bg-[#F8FBFF]">
-                        <span>All detected links ({data.links.length} total, {mappedCount} mapped)</span>
+                        <span>Unique link targets ({data.uniqueRoutes.length}) — usually matches pages above</span>
                         <ChevronRight size={14} className="text-[#94A3B8]" />
                     </summary>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-xs border-t border-[#E2E8F0]">
+                    <div className="overflow-x-auto border-t border-[#E2E8F0]">
+                        <table className="w-full text-xs">
                             <thead className="bg-[#F8FBFF]">
                                 <tr>
-                                    <th className="px-3 py-2 text-left font-black text-[#475569]">From</th>
-                                    <th className="px-3 py-2 text-left font-black text-[#475569]">Label</th>
                                     <th className="px-3 py-2 text-left font-black text-[#475569]">Original href</th>
-                                    <th className="px-3 py-2 text-left font-black text-[#475569]">Mapped to</th>
-                                    <th className="px-3 py-2 text-left font-black text-[#475569]">Status</th>
+                                    <th className="px-3 py-2 text-left font-black text-[#475569]">Storiva route</th>
+                                    <th className="px-3 py-2 text-left font-black text-[#475569]">Used on</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#F1F5F9]">
-                                {data.links.map((link, i) => (
+                                {data.uniqueRoutes.map((route, i) => (
                                     <tr key={i} className="hover:bg-[#F8FBFF]">
-                                        <td className="px-3 py-2"><code className="text-[#64748B] text-[10px]">{link.fromPage}</code></td>
-                                        <td className="px-3 py-2 font-semibold text-[#0F172A]">{link.label || "—"}</td>
-                                        <td className="px-3 py-2"><code className="text-[#94A3B8] text-[10px]">{link.toPage}</code></td>
-                                        <td className="px-3 py-2"><code className="text-[#0369A1] text-[10px]">{link.storivaRoute || "—"}</code></td>
-                                        <td className="px-3 py-2">
-                                            {link.storivaMapped && link.storivaRoute
-                                                ? <span className="inline-flex items-center gap-1 rounded-full bg-[#DCFCE7] px-2 py-0.5 text-[10px] font-bold text-[#166534]"><CheckCircle2 size={10} /> Mapped</span>
-                                                : <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2 py-0.5 text-[10px] font-bold text-[#92400E]"><AlertTriangle size={10} /> Unmapped</span>
-                                            }
-                                        </td>
+                                        <td className="px-3 py-2"><code className="text-[10px] text-[#64748B]">{route.originalHref}</code></td>
+                                        <td className="px-3 py-2"><code className="text-[10px] text-[#0369A1]">{route.storivaRoute || "—"}</code></td>
+                                        <td className="px-3 py-2 text-[#64748B]">{route.usedOnPages} page{route.usedOnPages !== 1 ? "s" : ""}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -855,7 +911,7 @@ function TabLinks({ adminRequest }) {
                 </details>
             )}
 
-            <SaveBar dirty={dirty} saving={saving} onSave={save} onDiscard={() => setDirty(false)} />
+            <SaveBar dirty={dirty} saving={saving} onSave={save} onDiscard={() => { setDirty(false); load(); }} />
         </div>
     );
 }
@@ -941,7 +997,7 @@ function TabPreview({ storeSlug }) {
             <div className="overflow-auto rounded-2xl border border-[#E2E8F0] bg-[#1E1E1E] p-4 flex items-center justify-center" style={{ minHeight: 620 }}>
                 {storeSlug ? (
                     <iframe
-                        src={`/store/${storeSlug}?preview=true`}
+                        src={`/store/${storeSlug}?preview=true&embed=1`}
                         style={{
                             width: deviceWidths[device],
                             height: 580,
@@ -1102,11 +1158,11 @@ export default function ImportedStoreManager({ initialTab = "overview" }) {
     }, [adminRequest]);
 
     useEffect(() => { loadStatus(); }, [loadStatus]);
+
+    // Sync tab only when route-provided initialTab changes (not on every internal tab click)
     useEffect(() => {
-        if (initialTab && initialTab !== tab) {
-            setTab(initialTab);
-        }
-    }, [initialTab, tab]);
+        setTab(initialTab || "overview");
+    }, [initialTab]);
 
     useEffect(() => {
         if (typeof window === "undefined") return;
@@ -1173,7 +1229,7 @@ export default function ImportedStoreManager({ initialTab = "overview" }) {
                 
                 <div className="flex-1 flex flex-col lg:flex-row min-h-0">
                     {/* Editor Panel */}
-                    <div className={`p-5 flex-1 overflow-auto ${isEditingTab ? 'lg:max-w-xl lg:border-r lg:border-[#E2E8F0]' : ''}`}>
+                    <div className={`p-5 overflow-auto ${isEditingTab ? "lg:w-[min(100%,480px)] lg:shrink-0 lg:border-r lg:border-[#E2E8F0]" : "flex-1"}`}>
                         {renderTab()}
                     </div>
 
@@ -1194,7 +1250,8 @@ export default function ImportedStoreManager({ initialTab = "overview" }) {
                                 {storeSlug ? (
                                     <iframe
                                         key={iframeKey}
-                                        src={`/store/${storeSlug}?preview=true`}
+                                        loading="lazy"
+                                        src={`/store/${storeSlug}?preview=true&embed=1`}
                                         style={{
                                             width: liveDevice === "mobile" ? "390px" : liveDevice === "tablet" ? "768px" : "100%",
                                             height: "90%",

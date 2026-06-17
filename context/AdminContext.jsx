@@ -76,6 +76,8 @@ export const AdminProvider = ({ children }) => {
             body: requestBody,
             token: tokenValue,
             storeId: activeStore?._id,
+            redirectOnUnauthorized: false,
+            showToast: method.toUpperCase() !== "GET",
         });
     }, [activeStore?._id, normalizeSellerEndpoint]);
 
