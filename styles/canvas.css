@@ -1,0 +1,119 @@
+/* Canvas-specific styles */
+
+.canvas-wrapper {
+    perspective: 1000px;
+}
+
+.canvas-container {
+    perspective-origin: 50% 50%;
+    transform-style: preserve-3d;
+}
+
+.canvas-content {
+    outline: none;
+}
+
+/* Element rendering */
+.text-element {
+    cursor: text;
+    user-select: none;
+}
+
+.text-element.editing {
+    user-select: text;
+    cursor: auto;
+}
+
+.image-element {
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.button-element {
+    cursor: pointer;
+    user-select: none;
+}
+
+.container-element {
+    min-height: 100px;
+    min-width: 100px;
+    border: 1px dashed #ddd;
+}
+
+/* Grid overlay for alignment */
+.grid-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image:
+        linear-gradient(0deg, transparent 24%, rgba(100, 100, 100, 0.05) 25%, rgba(100, 100, 100, 0.05) 26%, transparent 27%, transparent 74%, rgba(100, 100, 100, 0.05) 75%, rgba(100, 100, 100, 0.05) 76%, transparent 77%, transparent),
+        linear-gradient(90deg, transparent 24%, rgba(100, 100, 100, 0.05) 25%, rgba(100, 100, 100, 0.05) 26%, transparent 27%, transparent 74%, rgba(100, 100, 100, 0.05) 75%, rgba(100, 100, 100, 0.05) 76%, transparent 77%, transparent);
+    background-size: 50px 50px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.canvas-container.show-grid .grid-overlay {
+    opacity: 1;
+}
+
+/* Dragging state */
+.element.dragging {
+    opacity: 0.7;
+    z-index: 100;
+}
+
+/* Resizing state */
+.element.resizing {
+    pointer-events: none;
+}
+
+/* Focus state */
+.element:focus-within {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Disabled state */
+.element.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Animation transitions */
+.element {
+    transition: opacity 0.2s ease;
+}
+
+.element.fade-in {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Print styles */
+@media print {
+    .builder-left-panel,
+    .builder-right-panel,
+    .floating-toolbar,
+    .selection-overlay,
+    .resize-handle {
+        display: none !important;
+    }
+
+    .canvas-container {
+        box-shadow: none;
+        border-radius: 0;
+    }
+}

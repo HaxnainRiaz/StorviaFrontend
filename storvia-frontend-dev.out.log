@@ -1,0 +1,17 @@
+
+> adminpannel@0.1.0 dev
+> node --max-old-space-size=4096 node_modules/next/dist/bin/next dev -p 3001
+
+▲ Next.js 16.2.5 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.56.1:3001
+- Environments: .env.local, .env
+✓ Ready in 11.6s
+Creating turbopack project { dir: 'E:\\Storiva\\AdminPannel', testMode: true }
+- Experiments (use with caution):
+  · cpus: 1
+
+○ Compiling / ...
+✓ Finished writing to filesystem cache in 37.6s
+✓ Finished filesystem cache database compaction in 73s
+[?25h

@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-heading: var(--font-inter), sans-serif;
+    --font-body: var(--font-inter), sans-serif;
+  }
+
+  * {
+    border-color: #E2E8F0;
+  }
+
+  body {
+    background-color: #F8FBFF;
+    color: #475569;
+    font-family: var(--font-body);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+    color: #0F172A;
+  }
+}
+
+.storvia-managed-root {
+  display: block;
+  width: 100%;
+  min-height: 100vh;
+  isolation: isolate;
+}
+
+/* Custom animations */
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background-color: rgba(30, 138, 247, 0.2);
+  color: #0F172A;
+}
+
+:focus-visible {
+  outline: 2px solid #1E8AF7;
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F8FBFF;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 10px;
+  border: 2px solid #F8FBFF;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #1E8AF7;
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 #F8FBFF;
+}
+
+.storvia-card {
+  background: #ffffff;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+}
+
+.storvia-button {
+  background: #1E8AF7;
+  color: white;
+  border-radius: 12px;
+  font-weight: 700;
+  transition: 0.2s ease;
+}
+
+.storvia-button:hover {
+  background: #0F74D8;
+}
