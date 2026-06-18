@@ -1,5 +1,5 @@
-import ImportedStoreManager from "@/components/storvia/ImportedStoreManager";
+import VisualStorefrontEditor from "@/components/storvia/VisualStorefrontEditor";
 
 export default function StorefrontEditorPage() {
-    return <ImportedStoreManager initialTab="content" />;
+    return <VisualStorefrontEditor />;
 }

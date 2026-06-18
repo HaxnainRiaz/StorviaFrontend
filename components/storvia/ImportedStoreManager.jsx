@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import toast from "react-hot-toast";
 import {
-    Upload, Eye, Map, Palette, Navigation, Image as ImageIcon,
+    Upload, Eye, Palette, Navigation, Image as ImageIcon,
     ShoppingBag, Search, Globe, History, Layers, Settings,
     CheckCircle2, AlertTriangle, Loader2, RefreshCw, ArrowRight,
     X, Check, Monitor, Tablet, Smartphone, Save, Rocket, FileText,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { resolveAssetUrl } from "@/lib/storeUrl";
+import { DEVICE_WIDTHS } from "@/lib/storefrontRoutes";
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 const TABS = [
@@ -132,26 +133,47 @@ function TabOverview({ storefrontStatus, importRecord, storeSlug, onGoTo }) {
                 </div>
             </div>
 
+            {/* Primary CTA */}
+            {hasImport && (
+                <a
+                    href="/app/storefront/editor"
+                    className="flex items-center justify-between rounded-2xl border border-[#1E8AF7] bg-gradient-to-r from-[#EFF6FF] to-white p-5 transition hover:shadow-md"
+                >
+                    <div>
+                        <p className="text-sm font-black text-[#0F172A]">Open Visual Editor</p>
+                        <p className="mt-0.5 text-xs text-[#64748B]">Click text and images directly on your store canvas — like Canva.</p>
+                    </div>
+                    <ChevronRight className="text-[#1E8AF7]" />
+                </a>
+            )}
+
             {/* Quick actions */}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {[
                     { tab: "import",     icon: Upload,       label: "Re-import Design",   description: "Upload a new or updated design package",    color: "blue" },
+                    { href: "/app/storefront/editor", icon: Eye, label: "Visual Editor", description: "Edit text & images on the live canvas", color: "blue" },
                     { tab: "content",    icon: FileText,     label: "Edit Content",       description: "Update text, headings, and copy",           color: "blue" },
                     { tab: "images",     icon: ImageIcon,    label: "Replace Images",     description: "Swap design images with your brand photos",  color: "blue" },
                     { tab: "colors",     icon: Paintbrush,   label: "Change Colors",      description: "Adjust color palette and brand colours",     color: "blue" },
                     { tab: "seo",        icon: Search,       label: "SEO Settings",       description: "Meta title, description, and social preview", color: "blue" },
                     { tab: "preview",    icon: Eye,          label: "Preview Store",      description: "See how your store looks to customers",       color: "blue" },
-                ].map(({ tab, icon: Icon, label, description }) => (
-                    <button key={tab} onClick={() => onGoTo(tab)} className="flex items-start gap-3 rounded-xl border border-[#E2E8F0] bg-white p-4 text-left transition hover:border-[#93C5FD] hover:bg-[#EFF6FF]">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E8F3FF]">
-                            <Icon size={16} className="text-[#1E8AF7]" />
-                        </span>
-                        <div className="min-w-0">
-                            <p className="text-xs font-black text-[#0F172A]">{label}</p>
-                            <p className="mt-0.5 text-[11px] font-semibold text-[#64748B]">{description}</p>
-                        </div>
-                    </button>
-                ))}
+                ].map((item) => {
+                    const { tab, href, icon: Icon, label, description } = item;
+                    const cls = "flex items-start gap-3 rounded-xl border border-[#E2E8F0] bg-white p-4 text-left transition hover:border-[#93C5FD] hover:bg-[#EFF6FF]";
+                    const inner = (
+                        <>
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E8F3FF]">
+                                <Icon size={16} className="text-[#1E8AF7]" />
+                            </span>
+                            <div className="min-w-0">
+                                <p className="text-xs font-black text-[#0F172A]">{label}</p>
+                                <p className="mt-0.5 text-[11px] font-semibold text-[#64748B]">{description}</p>
+                            </div>
+                        </>
+                    );
+                    if (href) return <a key={label} href={href} className={cls}>{inner}</a>;
+                    return <button key={tab} onClick={() => onGoTo(tab)} className={cls}>{inner}</button>;
+                })}
             </div>
 
             {/* What Storvia manages */}
@@ -405,15 +427,20 @@ function TabImages({ storefrontId, adminRequest }) {
 
     const loadImages = useCallback(async () => {
         setLoading(true);
-        const res = await adminRequest("/seller/managed-storefront/images");
-        setLoading(false);
-        if (res?.success) setImages(res.data || []);
+        try {
+            const res = await adminRequest("/seller/managed-storefront/images");
+            if (res?.success) setImages(res.data || []);
+        } catch {
+            toast.error("Could not load images. Check that the backend is running.");
+        } finally {
+            setLoading(false);
+        }
     }, [adminRequest]);
 
     useEffect(() => { loadImages(); }, [loadImages]);
 
     const pageOptions = useMemo(() => {
-        const pages = new Map();
+        const pages = new globalThis.Map();
         images.forEach((img) => {
             if (img.pageId) pages.set(img.pageId, img.pageTitle || img.pageId);
         });
@@ -975,42 +1002,89 @@ function TabSEO({ adminRequest }) {
     );
 }
 
+// ─── Shared store preview frame ───────────────────────────────────────────────
+function StorePreviewFrame({ storeSlug, device = "desktop", iframeKey = 0, compact = false }) {
+    const [frameLoading, setFrameLoading] = useState(true);
+    const spec = DEVICE_WIDTHS[device] || DEVICE_WIDTHS.desktop;
+    const frameHeight = device === "mobile" ? 700 : device === "tablet" ? 640 : 620;
+
+    useEffect(() => {
+        setFrameLoading(true);
+    }, [iframeKey, device, storeSlug]);
+
+    if (!storeSlug) {
+        return (
+            <div className="flex h-64 w-full items-center justify-center rounded-xl bg-[#2A2A2A] text-sm font-bold text-gray-400">
+                Store not published yet — complete setup to preview.
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex w-full flex-col items-center">
+            {!compact && (
+                <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    {spec.label} · {device === "desktop" ? "1280px max" : spec.maxWidth}
+                </p>
+            )}
+            <div
+                className="relative overflow-hidden rounded-xl bg-white shadow-2xl transition-all duration-300"
+                style={{ width: spec.width, maxWidth: spec.maxWidth, height: frameHeight }}
+            >
+                {frameLoading && (
+                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-white">
+                        <Loader2 className="h-6 w-6 animate-spin text-[#1E8AF7]" />
+                        <span className="text-[11px] font-bold text-[#64748B]">Loading preview…</span>
+                    </div>
+                )}
+                <iframe
+                    key={`${iframeKey}-${device}`}
+                    src={`/store/${storeSlug}?preview=true&embed=1`}
+                    title="Store preview"
+                    onLoad={() => setFrameLoading(false)}
+                    style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+                />
+            </div>
+        </div>
+    );
+}
+
 // ─── TAB: Preview ─────────────────────────────────────────────────────────────
 function TabPreview({ storeSlug }) {
     const [device, setDevice] = useState("desktop");
-    const deviceWidths = {
-        desktop: "100%",
-        tablet: "768px",
-        mobile: "390px"
-    };
+    const [iframeKey, setIframeKey] = useState(0);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const refresh = () => setIframeKey((k) => k + 1);
+        window.addEventListener("storvia:store-updated", refresh);
+        return () => window.removeEventListener("storvia:store-updated", refresh);
+    }, []);
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center gap-2 rounded-xl border border-[#E2E8F0] bg-white p-2">
-                {[["desktop", Monitor, "Desktop (1280px)"], ["tablet", Tablet, "Tablet (768px)"], ["mobile", Smartphone, "Mobile (390px)"]].map(([d, Icon, label]) => (
+            <Banner icon={Eye} color="blue">
+                Preview uses your <strong>draft</strong> storefront. Device buttons resize the frame — desktop caps at 1280px, tablet at 768px, mobile at 390px.
+            </Banner>
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#E2E8F0] bg-white p-2">
+                {[["desktop", Monitor, "Desktop"], ["tablet", Tablet, "Tablet"], ["mobile", Smartphone, "Mobile"]].map(([d, Icon, label]) => (
                     <button key={d} onClick={() => setDevice(d)} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition ${device === d ? "bg-[#1E8AF7] text-white" : "text-[#64748B] hover:bg-[#F8FBFF]"}`}>
                         <Icon size={14} /> {label}
                     </button>
                 ))}
-                {storeSlug && <a href={`/store/${storeSlug}?preview=true`} target="_blank" rel="noreferrer" className="ml-auto flex items-center gap-1 rounded-lg border border-[#E2E8F0] px-3 py-2 text-xs font-black text-[#0F172A] hover:border-[#1E8AF7]"><ExternalLink size={13} /> Open live preview</a>}
+                <div className="ml-auto flex items-center gap-2">
+                    <button type="button" onClick={() => setIframeKey((k) => k + 1)} className="flex items-center gap-1 rounded-lg border border-[#E2E8F0] px-3 py-2 text-xs font-bold text-[#64748B] hover:border-[#1E8AF7]">
+                        <RefreshCw size={13} /> Reload
+                    </button>
+                    {storeSlug && (
+                        <a href={`/store/${storeSlug}?preview=true`} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-lg border border-[#E2E8F0] px-3 py-2 text-xs font-black text-[#0F172A] hover:border-[#1E8AF7]">
+                            <ExternalLink size={13} /> Open full tab
+                        </a>
+                    )}
+                </div>
             </div>
-            <div className="overflow-auto rounded-2xl border border-[#E2E8F0] bg-[#1E1E1E] p-4 flex items-center justify-center" style={{ minHeight: 620 }}>
-                {storeSlug ? (
-                    <iframe
-                        src={`/store/${storeSlug}?preview=true&embed=1`}
-                        style={{
-                            width: deviceWidths[device],
-                            height: 580,
-                            border: "none",
-                            display: "block",
-                            margin: "0 auto"
-                        }}
-                        className="rounded-xl bg-white shadow-2xl transition-all duration-300"
-                        title="Live Preview"
-                    />
-                ) : (
-                    <div className="flex h-64 items-center justify-center text-sm font-bold text-gray-400">Store not yet published. Complete setup to preview.</div>
-                )}
+            <div className="overflow-auto rounded-2xl border border-[#E2E8F0] bg-[#1E1E1E] p-6 flex items-start justify-center" style={{ minHeight: 680 }}>
+                <StorePreviewFrame storeSlug={storeSlug} device={device} iframeKey={iframeKey} />
             </div>
         </div>
     );
@@ -1148,13 +1222,23 @@ export default function ImportedStoreManager({ initialTab = "overview" }) {
 
     const loadStatus = useCallback(async () => {
         setLoading(true);
-        const [sfRes, impRes] = await Promise.allSettled([
-            adminRequest("/seller/managed-storefront"),
-            adminRequest("/seller/design-import"),
-        ]);
-        setLoading(false);
-        if (sfRes.status === "fulfilled" && sfRes.value?.success) setStorefrontStatus(sfRes.value.data);
-        if (impRes.status === "fulfilled" && impRes.value?.success && impRes.value.data?.length > 0) setImportRecord(impRes.value.data[0]);
+        try {
+            const [sfRes, impRes] = await Promise.allSettled([
+                adminRequest("/seller/managed-storefront"),
+                adminRequest("/seller/design-import"),
+            ]);
+            if (sfRes.status === "fulfilled" && sfRes.value?.success) setStorefrontStatus(sfRes.value.data);
+            if (impRes.status === "fulfilled" && impRes.value?.success && impRes.value.data?.length > 0) {
+                setImportRecord(impRes.value.data[0]);
+            }
+            if (sfRes.status === "rejected" && impRes.status === "rejected") {
+                toast.error("Could not reach the server. Is the backend running?");
+            }
+        } catch {
+            toast.error("Failed to load storefront manager.");
+        } finally {
+            setLoading(false);
+        }
     }, [adminRequest]);
 
     useEffect(() => { loadStatus(); }, [loadStatus]);
@@ -1235,9 +1319,9 @@ export default function ImportedStoreManager({ initialTab = "overview" }) {
 
                     {/* Split-pane Live Preview */}
                     {isEditingTab && (
-                        <div className="hidden lg:flex flex-col flex-1 bg-[#1E1E1E] p-4 items-center justify-center sticky top-0" style={{ height: "calc(100vh - 73px)" }}>
-                            <div className="w-full flex items-center justify-between mb-3 text-white px-2">
-                                <span className="text-xs font-black bg-[#1E8AF7] px-2.5 py-1 rounded-full animate-pulse">Live Draft Preview</span>
+                        <div className="hidden lg:flex flex-col flex-1 bg-[#1E1E1E] p-4 items-center justify-start sticky top-0 overflow-auto" style={{ height: "calc(100vh - 73px)" }}>
+                            <div className="w-full flex items-center justify-between mb-3 text-white px-2 shrink-0">
+                                <span className="text-xs font-black bg-[#1E8AF7] px-2.5 py-1 rounded-full">Live draft preview</span>
                                 <div className="flex items-center gap-1.5 bg-[#2A2A2A] rounded-lg p-1">
                                     {[["desktop", Monitor, "Desktop"], ["tablet", Tablet, "Tablet"], ["mobile", Smartphone, "Mobile"]].map(([d, Icon, tooltip]) => (
                                         <button key={d} onClick={() => setLiveDevice(d)} title={tooltip} className={`p-1.5 rounded-md text-xs font-bold transition ${liveDevice === d ? "bg-[#1E8AF7] text-white" : "text-gray-400 hover:text-white"}`}>
@@ -1246,26 +1330,7 @@ export default function ImportedStoreManager({ initialTab = "overview" }) {
                                     ))}
                                 </div>
                             </div>
-                            <div className="w-full h-full flex items-center justify-center overflow-auto">
-                                {storeSlug ? (
-                                    <iframe
-                                        key={iframeKey}
-                                        loading="lazy"
-                                        src={`/store/${storeSlug}?preview=true&embed=1`}
-                                        style={{
-                                            width: liveDevice === "mobile" ? "390px" : liveDevice === "tablet" ? "768px" : "100%",
-                                            height: "90%",
-                                            border: "none",
-                                            display: "block",
-                                            margin: "0 auto"
-                                        }}
-                                        className="rounded-xl bg-white shadow-2xl transition-all duration-300"
-                                        title="Live Split Preview"
-                                    />
-                                ) : (
-                                    <div className="text-xs font-bold text-gray-500">Preview not available</div>
-                                )}
-                            </div>
+                            <StorePreviewFrame storeSlug={storeSlug} device={liveDevice} iframeKey={iframeKey} compact />
                         </div>
                     )}
                 </div>

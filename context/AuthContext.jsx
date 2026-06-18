@@ -74,7 +74,7 @@ export const AuthProvider = ({ children }) => {
 
             if (res.success && res.data) {
                 applySession(res.data, token);
-            } else {
+            } else if (res.status === 401) {
                 localStorage.removeItem("token");
                 clearAuthCookie();
                 setUser(null);

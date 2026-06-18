@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { resolveAssetUrl } from "@/lib/storeUrl";
-import { rewriteHtmlLinksClient, resolveNavigationTarget, resolvePageForView, shouldRenderFullImportedPage } from "@/lib/storefrontRoutes";
+import { rewriteHtmlLinksClient, resolveNavigationTarget, resolvePageForView, shouldRenderFullImportedPage, isHomePageSlug } from "@/lib/storefrontRoutes";
 
 // Pakistan-specific provinces list
 const PAKISTAN_PROVINCES = [
@@ -212,6 +212,7 @@ export default function PublicStorefront({ view = "home" }) {
     const [trackResult, setTrackResult] = useState(null);
     const [trackingError, setTrackingError] = useState("");
     const [searchingTrack, setSearchingTrack] = useState(false);
+    const [isEmbed, setIsEmbed] = useState(false);
 
     // ── Cache-first data fetching ──────────────────────────────────────────────
     // Strategy:
@@ -225,6 +226,9 @@ export default function PublicStorefront({ view = "home" }) {
 
         const isPreview = typeof window !== "undefined" &&
             new URLSearchParams(window.location.search).get("preview") === "true";
+        const embedMode = typeof window !== "undefined" &&
+            new URLSearchParams(window.location.search).get("embed") === "1";
+        setIsEmbed(embedMode);
 
         // ── Step 1: Load cache immediately ────────────────────────────────────
         const cached = sfCache.get(storeSlug);
@@ -1432,6 +1436,13 @@ export default function PublicStorefront({ view = "home" }) {
         return resolvePageForView(view, pageSlug, managedSchema.pages);
     }, [managedSchema, pageSlug, view]);
 
+    useEffect(() => {
+        if (!storeSlug || view !== "page" || !pageSlug) return;
+        if (isHomePageSlug(pageSlug, storeSlug)) {
+            router.replace(`/store/${storeSlug}`);
+        }
+    }, [view, pageSlug, storeSlug, router]);
+
     const useFullImportedRender = useMemo(() => {
         return isManaged && shouldRenderFullImportedPage(view, activePage);
     }, [isManaged, view, activePage]);
@@ -1731,8 +1742,8 @@ export default function PublicStorefront({ view = "home" }) {
     }
 
     return (
-        <div className="storefront-container pb-20 md:pb-0">
-            {!isManaged && <AnnouncementBar />}
+        <div className={`storefront-container ${isEmbed ? "" : "pb-20 md:pb-0"}`}>
+            {!isManaged && !isEmbed && <AnnouncementBar />}
 
             {useFullImportedRender ? (
                 renderManagedStorefront()
@@ -1742,7 +1753,7 @@ export default function PublicStorefront({ view = "home" }) {
                 renderManagedLayout(<EmptyState />)
             )}
 
-            <CartDrawer />
+            {!isEmbed && <CartDrawer />}
         </div>
     );
 }
