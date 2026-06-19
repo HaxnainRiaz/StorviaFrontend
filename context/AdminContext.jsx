@@ -6,7 +6,6 @@ import useOrderStore from "@/store/useOrderStore";
 
 const AdminContext = createContext();
 
-const API_URL = getApiBaseUrl();
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
 export const AdminProvider = ({ children }) => {
@@ -33,7 +32,7 @@ export const AdminProvider = ({ children }) => {
     const [blogs, setBlogs] = useState([]);
 
     useEffect(() => {
-        if (isDevelopment) console.info('[Storvia API] Base URL:', API_URL);
+        if (isDevelopment) console.info('[Storvia API] Base URL:', getApiBaseUrl());
     }, []);
 
     useEffect(() => {

@@ -76,11 +76,13 @@ const ProductTable = ({ products, onEdit, onDelete, onBulkDelete }) => {
     };
 
     const resolveCategoryTitle = (productCategory) => {
+        if (productCategory == null) return "Uncategorized";
+
         // If it's an array (multiple categories)
         if (Array.isArray(productCategory)) {
             if (productCategory.length === 0) return "Uncategorized";
-            // Map each item in the array to its title
             const titles = productCategory.map(cat => {
+                if (cat == null) return "Uncategorized";
                 if (typeof cat === 'object' && cat.title) return cat.title;
                 if (typeof cat === 'string') {
                     const found = categories?.find(c => c._id === cat);
@@ -92,7 +94,7 @@ const ProductTable = ({ products, onEdit, onDelete, onBulkDelete }) => {
         }
 
         // Single object/string handling (legacy or single category)
-        if (typeof productCategory === 'object' && productCategory.title) return productCategory.title;
+        if (productCategory && typeof productCategory === 'object' && productCategory.title) return productCategory.title;
 
         if (typeof productCategory === 'string' && categories?.length > 0) {
             const found = categories.find(c => c._id === productCategory);

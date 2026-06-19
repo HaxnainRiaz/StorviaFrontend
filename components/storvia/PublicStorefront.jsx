@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, Fragment } from "react";
 import toast from "react-hot-toast";
 import { 
     Search, ShoppingBag, Store, X, ChevronRight, Plus, Minus, 
@@ -12,8 +12,29 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { resolveAssetUrl } from "@/lib/storeUrl";
-import { rewriteHtmlLinksClient, resolveNavigationTarget, resolvePageForView, shouldRenderFullImportedPage, isHomePageSlug } from "@/lib/storefrontRoutes";
+import { rewriteHtmlLinksClient, resolveNavigationTarget, resolvePageForView, shouldRenderFullImportedPage, isHomePageSlug, normalizeImportedHref } from "@/lib/storefrontRoutes";
 import { resolveProductsForSection } from "@/lib/commerceProductSource";
+import { injectDesignProductGrid } from "@/lib/designProductCard";
+import {
+    extractDesignCommercePatterns,
+    designUsesNativeCartDrawer,
+    buildCartDrawerPanelHtml,
+    getCommerceLayoutCss,
+} from "@/lib/designCommerceFallback";
+import {
+    stripRichText,
+    findProductBySlugLoose,
+    resolveProductFromClickTarget,
+    isAddToCartClick,
+    isWishlistToggleClick,
+    isPlaceOrderClick,
+    getPageCommerceKind,
+    hydrateImportedSectionHtml,
+    readImportedCheckoutForm,
+    readImportedReviewForm,
+    updateHeaderCommerceBadges,
+    sectionMatchesCommerce,
+} from "@/lib/storefrontCommerceBridge";
 
 // Pakistan-specific provinces list
 const PAKISTAN_PROVINCES = [
@@ -418,6 +439,17 @@ export default function PublicStorefront({ view = "home" }) {
         localStorage.setItem(`storiva_cart_${storeSlug}`, JSON.stringify(newCart));
     };
 
+    // Reconcile cart entries with live catalog data (title, image, price)
+    useEffect(() => {
+        if (!products.length || !cart.length) return;
+        const enriched = cart.map((item) => {
+            const live = products.find((p) => String(p._id) === String(item.product?._id));
+            return live ? { ...item, product: live } : item;
+        });
+        const changed = enriched.some((item, idx) => item.product !== cart[idx]?.product);
+        if (changed) updateCartState(enriched);
+    }, [products, cart.length]);
+
     const addToCart = (product, qty = 1) => {
         if (product.stock <= 0) {
             toast.error("Sorry, this item is sold out!");
@@ -521,12 +553,23 @@ export default function PublicStorefront({ view = "home" }) {
         return Math.min(discount, cartSubtotal);
     }, [appliedCoupon, cartSubtotal]);
 
-    const validateCoupon = async () => {
-        if (!couponCodeInput.trim()) return;
+    const checkoutPricing = useMemo(() => ({
+        subtotal: cartSubtotal,
+        shippingFee,
+        discount: couponDiscount,
+        total: Math.max(cartSubtotal + shippingFee - couponDiscount, 0),
+        appliedCoupon,
+        couponCode: couponCodeInput,
+    }), [cartSubtotal, shippingFee, couponDiscount, appliedCoupon, couponCodeInput]);
+
+    const validateCoupon = useCallback(async (codeOverride) => {
+        const code = String(codeOverride ?? couponCodeInput).trim().toUpperCase();
+        if (!code) return;
+        setCouponCodeInput(code);
         setValidatingCoupon(true);
         try {
             const res = await apiClient.post(`/storefront/${storeSlug}/coupons/validate`, {
-                code: couponCodeInput,
+                code,
                 subtotal: cartSubtotal
             }, { showToast: false });
             if (res.success) {
@@ -541,7 +584,7 @@ export default function PublicStorefront({ view = "home" }) {
         } finally {
             setValidatingCoupon(false);
         }
-    };
+    }, [storeSlug, cartSubtotal, couponCodeInput]);
 
     const handleSubmitReview = async (e) => {
         e.preventDefault();
@@ -572,6 +615,144 @@ export default function PublicStorefront({ view = "home" }) {
         }
     };
 
+    const submitImportedCheckout = useCallback(async (form) => {
+        if (!cart.length) {
+            toast.error("Your bag is empty.");
+            return;
+        }
+        const address = readImportedCheckoutForm(form);
+        if (!address.fullName || !address.phone || !address.city || !address.street) {
+            toast.error("Please complete all checkout fields.");
+            return;
+        }
+
+        setSubmittingOrder(true);
+        setCheckoutError("");
+        const orderPayload = {
+            items: cart.map((item) => ({
+                product: item.product._id,
+                quantity: item.quantity,
+                price:
+                    item.product.salePrice && item.product.salePrice < item.product.price
+                        ? item.product.salePrice
+                        : item.product.price,
+            })),
+            shippingAddress: {
+                fullName: address.fullName,
+                email: address.email,
+                phone: address.phone,
+                street: address.street,
+                city: address.city,
+                state: address.province,
+                postalCode: address.postalCode,
+                country: address.country,
+            },
+            paymentMethod: address.paymentMethod === "Bank Transfer" ? "Card" : "COD",
+            coupon: appliedCoupon ? appliedCoupon.code : undefined,
+        };
+
+        try {
+            const res = await apiClient.post(`/storefront/${storeSlug}/orders`, orderPayload);
+            if (res.success) {
+                setOrderSuccessData(res.data);
+                clearCart();
+                toast.success("Order placed successfully!");
+                router.push(`/store/${storeSlug}/pages/thank-you`);
+            } else {
+                setCheckoutError(res.message || "Failed to complete checkout.");
+                toast.error(res.message || "Checkout failed.");
+            }
+        } catch {
+            setCheckoutError("Checkout failed due to server connection issues.");
+            toast.error("Checkout failed due to server connection issues.");
+        } finally {
+            setSubmittingOrder(false);
+        }
+    }, [cart, storeSlug, router, clearCart, appliedCoupon]);
+
+    useEffect(() => {
+        if (!isManaged || typeof window === "undefined") return undefined;
+        const root = document.querySelector(`.store-${storeSlug}.storvia-managed-root`);
+        if (!root) return undefined;
+
+        updateHeaderCommerceBadges(root, cart);
+
+        const onSubmit = (event) => {
+            const form = event.target?.closest?.("form[data-storvia-checkout-form]");
+            if (form && root.contains(form)) {
+                event.preventDefault();
+                submitImportedCheckout(form);
+                return;
+            }
+
+            const reviewForm = event.target?.closest?.("form[data-storvia-review-form]");
+            if (reviewForm && root.contains(reviewForm)) {
+                event.preventDefault();
+                const payload = readImportedReviewForm(reviewForm);
+                if (!payload?.name || !payload?.comment || !payload?.productId) {
+                    toast.error("Please fill in all review fields.");
+                    return;
+                }
+                apiClient
+                    .post(`/storefront/${storeSlug}/products/${payload.productId}/reviews`, {
+                        name: payload.name,
+                        rating: payload.rating,
+                        comment: payload.comment,
+                    })
+                    .then(async (res) => {
+                        if (res.success) {
+                            toast.success("Review submitted! Thank you.");
+                            reviewForm.reset();
+                            const revRes = await apiClient.get(
+                                `/storefront/${storeSlug}/products/${payload.productId}/reviews`,
+                                { showToast: false }
+                            );
+                            if (revRes.success) setProductReviews(revRes.data);
+                        } else {
+                            toast.error(res.message || "Could not submit review.");
+                        }
+                    })
+                    .catch(() => toast.error("Failed to submit review."));
+            }
+        };
+
+        const onClick = (event) => {
+            const couponBtn = event.target?.closest?.("[data-storvia-apply-coupon]");
+            if (couponBtn && root.contains(couponBtn)) {
+                event.preventDefault();
+                const input = root.querySelector("[data-storvia-coupon-input]");
+                const code = input?.value?.trim();
+                if (code) validateCoupon(code);
+                return;
+            }
+
+            const ratingBtn = event.target?.closest?.("[data-storvia-rating-picker] [data-rating]");
+            if (ratingBtn && root.contains(ratingBtn)) {
+                event.preventDefault();
+                const form = ratingBtn.closest("form[data-storvia-review-form]");
+                const rating = Number(ratingBtn.getAttribute("data-rating") || 5);
+                form?.querySelector('[name="rating"]')?.setAttribute("value", String(rating));
+                ratingBtn.parentElement?.querySelectorAll("[data-rating]").forEach((btn) => {
+                    btn.classList.toggle("active", btn === ratingBtn);
+                });
+                return;
+            }
+
+            if (event.target?.closest?.("[data-storvia-place-order]")) {
+                event.preventDefault();
+                const form = root.querySelector("form[data-storvia-checkout-form]");
+                if (form) submitImportedCheckout(form);
+            }
+        };
+
+        root.addEventListener("submit", onSubmit, true);
+        root.addEventListener("click", onClick, true);
+        return () => {
+            root.removeEventListener("submit", onSubmit, true);
+            root.removeEventListener("click", onClick, true);
+        };
+    }, [cart, isManaged, storeSlug, submitImportedCheckout, validateCoupon]);
+
     const handleCheckoutSubmit = async (e) => {
         e.preventDefault();
         setCheckoutError("");
@@ -584,7 +765,7 @@ export default function PublicStorefront({ view = "home" }) {
         setSubmittingOrder(true);
         const orderPayload = {
             items: cart.map(item => ({
-                productId: item.product._id,
+                product: item.product._id,
                 quantity: item.quantity,
                 price: item.product.salePrice && item.product.salePrice < item.product.price ? item.product.salePrice : item.product.price
             })),
@@ -630,6 +811,15 @@ export default function PublicStorefront({ view = "home" }) {
         const list = new Set(products.map(p => typeof p.category === "object" ? p.category?.title : p.category).filter(Boolean));
         return ["All", ...Array.from(list)];
     }, [products]);
+
+    const shopProductsForView = useMemo(() => {
+        if (selectedCategory === "All") return products;
+        return products.filter(
+            (p) =>
+                p.category === selectedCategory ||
+                (p.category && p.category.title === selectedCategory)
+        );
+    }, [products, selectedCategory]);
 
     // -------------------------------------------------------------------------
     // SUB-COMPONENTS
@@ -846,6 +1036,34 @@ export default function PublicStorefront({ view = "home" }) {
         );
     };
 
+    const DesignCartDrawer = () => {
+        if (!isCartOpen || !isManaged || !managedSchema) return null;
+        const rawCss = managedSchema.scopedCss || managedSchema.globalStyles?.rawCss || "";
+        const scopedCss = rawCss
+            .replace(/\bhtml\b/g, `.store-${storeSlug}`)
+            .replace(/\bbody\b/g, `.store-${storeSlug}`);
+        const panelHtml = buildCartDrawerPanelHtml(cart, {
+            designPatterns: designCommercePatterns,
+            storeBase: `/store/${storeSlug}`,
+            storeSlug,
+            resolveImage: (src, category) => getImageUrl(src, category),
+        });
+        return (
+            <div
+                className="fixed inset-0 z-[100] flex justify-end bg-black/50"
+                onClick={() => setIsCartOpen(false)}
+            >
+                <div
+                    className={`store-${storeSlug} w-full max-w-md h-full overflow-auto shadow-2xl`}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <style dangerouslySetInnerHTML={{ __html: scopedCss + getCommerceLayoutCss(storeSlug) }} />
+                    <div dangerouslySetInnerHTML={{ __html: panelHtml }} />
+                </div>
+            </div>
+        );
+    };
+
     const ContactForm = () => {
         const [contactName, setContactName] = useState("");
         const [contactEmail, setContactEmail] = useState("");
@@ -973,7 +1191,7 @@ export default function PublicStorefront({ view = "home" }) {
                                 </span>
                             </div>
 
-                            <p className="text-sm font-medium leading-relaxed text-[#64748B]">{detail.description || "No specific detailed description provided for this item."}</p>
+                            <p className="text-sm font-medium leading-relaxed text-[#64748B]">{stripRichText(detail.description) || "No specific detailed description provided for this item."}</p>
 
                             <div className="pt-4 flex flex-col sm:flex-row gap-4 items-center">
                                 <button onClick={() => addToCart(detail, 1)} disabled={isProductSoldOut} className="w-full sm:flex-1 flex items-center justify-center gap-2 bg-[#1E8AF7] hover:bg-[#0F74D8] text-white py-4 rounded-xl text-center text-sm font-bold transition disabled:opacity-55">
@@ -1441,8 +1659,31 @@ export default function PublicStorefront({ view = "home" }) {
 
     const activePage = useMemo(() => {
         if (!managedSchema?.pages?.length) return null;
-        return resolvePageForView(view, pageSlug, managedSchema.pages);
-    }, [managedSchema, pageSlug, view]);
+        return resolvePageForView(view, pageSlug, managedSchema.pages, productSlug);
+    }, [managedSchema, pageSlug, view, productSlug]);
+
+    const pageCommerceKind = useMemo(
+        () => getPageCommerceKind(activePage, view, pageSlug),
+        [activePage, view, pageSlug]
+    );
+
+    const designCommercePatterns = useMemo(
+        () => (managedSchema ? extractDesignCommercePatterns(managedSchema) : null),
+        [managedSchema]
+    );
+
+    const usesNativeCartDrawer = useMemo(
+        () => Boolean(designCommercePatterns?.hasCartDrawer),
+        [designCommercePatterns]
+    );
+
+    const openCartExperience = useCallback(() => {
+        if (isManaged && !usesNativeCartDrawer) {
+            router.push(`/store/${storeSlug}/cart`);
+            return;
+        }
+        setIsCartOpen(true);
+    }, [isManaged, usesNativeCartDrawer, router, storeSlug]);
 
     useEffect(() => {
         if (!storeSlug || view !== "page" || !pageSlug) return;
@@ -1452,16 +1693,21 @@ export default function PublicStorefront({ view = "home" }) {
     }, [view, pageSlug, storeSlug, router]);
 
     const useFullImportedRender = useMemo(() => {
-        return isManaged && shouldRenderFullImportedPage(view, activePage);
+        if (!isManaged || !activePage) return false;
+        if (view === "product" && activePage) return true;
+        return shouldRenderFullImportedPage(view, activePage);
     }, [isManaged, view, activePage]);
 
-    useEffect(() => {
-        if (view === "cart" && isManaged && !activePage) {
-            setIsCartOpen(true);
-        }
-    }, [view, isManaged, activePage]);
-
     const renderSectionContent = (section) => {
+        const renderHtmlBlock = (html, binding) => (
+            <div
+                key={binding || section.id}
+                data-binding={binding || undefined}
+                style={{ display: "contents" }}
+                dangerouslySetInnerHTML={{ __html: html }}
+            />
+        );
+
         const applyEdits = (rawHtml) => {
             if (!rawHtml) return "";
             if (typeof window === "undefined") return rawHtml;
@@ -1469,19 +1715,23 @@ export default function PublicStorefront({ view = "home" }) {
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(`<div>${rawHtml}</div>`, "text/html");
                 const container = doc.body.firstChild;
+                const edits = section.editedContent || {};
 
-                const textElements = container.querySelectorAll("h1, h2, h3, h4, h5, h6, p, a, button, span, li");
-                const imageElements = container.querySelectorAll("img");
-
-                (section.editableFields || []).forEach(field => {
-                    const parts = field.key.split("_");
-                    const idx = parseInt(parts[parts.length - 1], 10);
-                    if (!isNaN(idx)) {
-                        if (field.type === "text" && textElements[idx]) {
-                            textElements[idx].textContent = field.value;
-                        } else if (field.type === "image" && imageElements[idx]) {
-                            imageElements[idx].setAttribute("src", field.value);
-                        }
+                // Only apply seller edits — never re-apply import-time placeholder text by index
+                (section.editableFields || []).forEach((field) => {
+                    if (edits[field.key] === undefined) return;
+                    if (field.type === "text" && field.selector) {
+                        const matches = container.querySelectorAll(field.selector);
+                        const parts = field.key.split("_");
+                        const nodeIdx = parseInt(parts[parts.length - 1], 10);
+                        const target = !Number.isNaN(nodeIdx) && matches[nodeIdx] ? matches[nodeIdx] : matches[0];
+                        if (target) target.textContent = edits[field.key];
+                    } else if (field.type === "image") {
+                        const images = container.querySelectorAll("img");
+                        const parts = field.key.split("_");
+                        const nodeIdx = parseInt(parts[parts.length - 1], 10);
+                        const target = !Number.isNaN(nodeIdx) && images[nodeIdx] ? images[nodeIdx] : images[0];
+                        if (target) target.setAttribute("src", edits[field.key]);
                     }
                 });
 
@@ -1536,37 +1786,68 @@ export default function PublicStorefront({ view = "home" }) {
 
         switch (section.type) {
             case "dynamic_header":
+                if (section.html || section.originalHtml) {
+                    return renderHtmlBlock(applyEdits(section.html || section.originalHtml || ""), "header");
+                }
                 return <Header />;
             case "dynamic_footer":
+                if (section.html || section.originalHtml) {
+                    return renderHtmlBlock(applyEdits(section.html || section.originalHtml || ""), "footer");
+                }
                 return <Footer />;
             case "dynamic_product_grid":
             case "dynamic_featured_products": {
                 const gridConfig = section.config || {};
                 const gridProducts = resolveProductsForSection(products, gridConfig);
-                const cols = gridConfig.gridColumns || 4;
-                const colClass = cols === 2 ? "grid-cols-2" : cols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-4";
-                return (
-                    <div className="storvia-product-grid mx-auto max-w-7xl px-6 py-10" data-binding="product_grid">
-                        {gridProducts.length === 0 ? (
-                            <div className="py-12 text-center text-xs font-bold text-neutral-400 border border-dashed rounded-2xl">
-                                No products available yet. Add products in your admin panel.
-                            </div>
-                        ) : (
-                            <div className={`grid ${colClass} gap-6`}>
-                                {gridProducts.map((prod) => (
-                                    <ProductCard
-                                        key={prod._id}
-                                        product={prod}
-                                        showPrice={gridConfig.showPrice !== false}
-                                        showAddToCart={gridConfig.showAddToCart !== false}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                );
+                const cardTemplate = gridConfig.cardTemplate || section.cardTemplate || managedSchema?.importedProducts?.cardTemplate;
+                const staticFallback = applyEdits(section.originalHtml || section.html || "");
+                const useDesignTemplate = gridConfig.useDesignTemplate !== false && Boolean(cardTemplate);
+
+                if (useDesignTemplate && gridProducts.length > 0) {
+                    const gridHtml = injectDesignProductGrid(staticFallback, cardTemplate, gridProducts, {
+                        storeSlug,
+                        resolveImage: (src, category) => getImageUrl(src, category),
+                    });
+                    if (gridHtml) {
+                        return renderHtmlBlock(gridHtml, "product_grid");
+                    }
+                }
+
+                if (staticFallback) {
+                    return renderHtmlBlock(staticFallback, "product_grid_static");
+                }
+
+                if (!isManaged) {
+                    const cols = gridConfig.gridColumns || 4;
+                    const colClass = cols === 2 ? "grid-cols-2" : cols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-4";
+                    return (
+                        <div className="storvia-product-grid mx-auto max-w-7xl px-6 py-10" data-binding="product_grid">
+                            {gridProducts.length === 0 ? (
+                                <div className="py-12 text-center text-xs font-bold text-neutral-400 border border-dashed rounded-2xl">
+                                    No products available yet. Add products in your admin panel.
+                                </div>
+                            ) : (
+                                <div className={`grid ${colClass} gap-6`}>
+                                    {gridProducts.map((prod) => (
+                                        <ProductCard
+                                            key={prod._id}
+                                            product={prod}
+                                            showPrice={gridConfig.showPrice !== false}
+                                            showAddToCart={gridConfig.showAddToCart !== false}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                }
+
+                return renderHtmlBlock(staticFallback || "", "product_grid_empty");
             }
             case "dynamic_contact":
+                if (section.html || section.originalHtml) {
+                    return renderHtmlBlock(applyEdits(section.html || section.originalHtml || ""), "contact");
+                }
                 return (
                     <div className="mx-auto max-w-xl px-6 py-10">
                         <ContactForm />
@@ -1576,7 +1857,7 @@ export default function PublicStorefront({ view = "home" }) {
                 return (
                     <button
                         type="button"
-                        onClick={() => setIsCartOpen(true)}
+                        onClick={openCartExperience}
                         className="storvia-cart-button relative flex items-center gap-2"
                         data-binding="cart_button"
                         aria-label="Open cart"
@@ -1602,48 +1883,200 @@ export default function PublicStorefront({ view = "home" }) {
                     </button>
                 );
             case "static_or_mapped":
-            default:
-                const html = applyEdits(section.html);
-                return <div dangerouslySetInnerHTML={{ __html: html }} />;
+            default: {
+                let html = applyEdits(section.html);
+                if (pageCommerceKind && sectionMatchesCommerce(section, pageCommerceKind)) {
+                    html = hydrateImportedSectionHtml(html, {
+                        commerceKind: pageCommerceKind,
+                        cart,
+                        wishlist,
+                        detail,
+                        reviews: productReviews,
+                        checkoutPricing:
+                            pageCommerceKind === "cart"
+                                ? {
+                                      subtotal: cartSubtotal,
+                                      shippingFee,
+                                      discount: couponDiscount,
+                                      total: Math.max(cartSubtotal + shippingFee - couponDiscount, 0),
+                                  }
+                                : checkoutPricing,
+                        designPatterns: designCommercePatterns,
+                        shopProducts: shopProductsForView,
+                        categories: activeCategories,
+                        selectedCategory,
+                        cardTemplate:
+                            section.cardTemplate ||
+                            managedSchema?.importedProducts?.cardTemplate ||
+                            designCommercePatterns?.productCardTemplate ||
+                            '<article class="product"><a href="#"><img alt=""><h3></h3><p></p><strong></strong></a></article>',
+                        storeSlug,
+                        resolveImage: (src, category) => getImageUrl(src, category),
+                    });
+                }
+                return renderHtmlBlock(html);
+            }
         }
     };
 
     const handleManagedLinkClick = useCallback((event) => {
         if (!isManaged) return;
-        const anchor = event.target?.closest?.("a[href]");
+        const target = event.target;
+
+        if (target.closest?.("[data-storvia-close-drawer]")) {
+            event.preventDefault();
+            event.stopPropagation();
+            setIsCartOpen(false);
+            return;
+        }
+
+        if (target.closest?.(".cart-trigger, .cart-btn-zone button, a.cart, .quick a[href*='cart']")) {
+            event.preventDefault();
+            event.stopPropagation();
+            openCartExperience();
+            return;
+        }
+
+        const filterEl = target.closest?.("[data-storvia-category-filter]");
+        if (filterEl) {
+            event.preventDefault();
+            event.stopPropagation();
+            setSelectedCategory(filterEl.getAttribute("data-storvia-category-filter") || "All");
+            return;
+        }
+
+        if (isPlaceOrderClick(target)) {
+            event.preventDefault();
+            event.stopPropagation();
+            const root = target.closest(`.store-${storeSlug}.storvia-managed-root`);
+            const form = root?.querySelector("form[data-storvia-checkout-form]");
+            if (form) submitImportedCheckout(form);
+            return;
+        }
+
+        if (isAddToCartClick(target)) {
+            const product =
+                (view === "product" && detail) ? detail : resolveProductFromClickTarget(target, products, storeSlug, detail);
+            if (product) {
+                event.preventDefault();
+                event.stopPropagation();
+                addToCart(product, 1);
+                return;
+            }
+        }
+
+        if (isWishlistToggleClick(target)) {
+            const product = resolveProductFromClickTarget(target, products, storeSlug, detail);
+            if (product) {
+                event.preventDefault();
+                event.stopPropagation();
+                toggleWishlist(product);
+                return;
+            }
+        }
+
+        const addCartEl = target.closest?.("[data-storvia-add-cart]");
+        if (addCartEl) {
+            event.preventDefault();
+            event.stopPropagation();
+            const productId = addCartEl.getAttribute("data-storvia-add-cart");
+            const product = products.find((p) => String(p._id) === String(productId)) || detail;
+            if (product) addToCart(product, 1);
+            return;
+        }
+
+        const wishEl = target.closest?.("[data-storvia-wishlist]");
+        if (wishEl) {
+            event.preventDefault();
+            event.stopPropagation();
+            const productId = wishEl.getAttribute("data-storvia-wishlist");
+            const product = products.find((p) => String(p._id) === String(productId)) || detail;
+            if (product) toggleWishlist(product);
+            return;
+        }
+
+        const anchor = target.closest?.("a[href]");
         if (!anchor) return;
         const href = anchor.getAttribute("href") || "";
-        const target = resolveNavigationTarget({
+
+        const normalized = normalizeImportedHref(href);
+        const fileBase = normalized.replace(/\.html$/i, "").split("/").pop()?.toLowerCase();
+        if (fileBase) {
+            const product = findProductBySlugLoose(products, fileBase);
+            const productPage = managedSchema?.pages?.find((p) => {
+                const pageFile = String(p.fileName || "")
+                    .replace(/\.html$/i, "")
+                    .split("/")
+                    .pop()
+                    ?.toLowerCase();
+                return pageFile === fileBase && p.sections?.some((s) => /product-page/i.test(s.html || ""));
+            });
+            if (product && productPage) {
+                event.preventDefault();
+                router.push(`/store/${storeSlug}/products/${product.slug}`);
+                return;
+            }
+        }
+
+        const targetNav = resolveNavigationTarget({
             href,
             storeSlug,
             routeMap,
-            pages: managedSchema?.pages || []
+            pages: managedSchema?.pages || [],
         });
 
-        if (target.action === "external") {
+        if (targetNav.action === "external") {
             anchor.setAttribute("target", "_blank");
             anchor.setAttribute("rel", "noopener noreferrer");
             return;
         }
-        if (target.action === "blocked") {
+        if (targetNav.action === "blocked") {
             event.preventDefault();
-            toast.error(target.message || "Blocked unsafe link.");
+            toast.error(targetNav.message || "Blocked unsafe link.");
             return;
         }
-        if (target.action === "unmapped") {
+        if (targetNav.action === "unmapped") {
             event.preventDefault();
-            toast(target.message || "Page not mapped yet.");
+            toast(targetNav.message || "Page not mapped yet.");
             return;
         }
-        if (target.action === "navigate" && target.path) {
+        if (targetNav.action === "navigate" && targetNav.path) {
             event.preventDefault();
-            if (target.path.endsWith("/cart")) {
-                setIsCartOpen(true);
+            if (targetNav.path.endsWith("/cart")) {
+                router.push(targetNav.path);
                 return;
             }
-            router.push(target.path);
+            if (targetNav.path.includes("/wishlist")) {
+                router.push(targetNav.path);
+                return;
+            }
+            router.push(targetNav.path);
         }
-    }, [isManaged, managedSchema?.pages, routeMap, router, storeSlug]);
+    }, [
+        isManaged,
+        managedSchema?.pages,
+        routeMap,
+        router,
+        storeSlug,
+        products,
+        addToCart,
+        toggleWishlist,
+        detail,
+        view,
+        submitImportedCheckout,
+        openCartExperience,
+        setSelectedCategory,
+    ]);
+
+    const managedFontLinks = useMemo(() => {
+        const links = new Set();
+        for (const page of managedSchema?.pages || []) {
+            for (const href of page.googleFontsLinks || []) {
+                if (href) links.add(href);
+            }
+        }
+        return Array.from(links);
+    }, [managedSchema]);
 
     const renderManagedStorefront = () => {
         if (!managedSchema) return null;
@@ -1656,26 +2089,25 @@ export default function PublicStorefront({ view = "home" }) {
             .replace(/\bbody\b/g, `.store-${storeSlug}`);
         const cssVars = `
             .store-${storeSlug} {
-                --color-primary: ${managedSchema.globalStyles?.colors?.primary || '#1E8AF7'};
+                --color-primary: ${managedSchema.globalStyles?.colors?.primary || '#211815'};
                 --color-secondary: ${managedSchema.globalStyles?.colors?.secondary || '#E8F3FF'};
-                --color-background: ${managedSchema.globalStyles?.colors?.background || '#FFFFFF'};
-                --color-text: ${managedSchema.globalStyles?.colors?.text || '#0F172A'};
+                --color-background: ${managedSchema.globalStyles?.colors?.background || '#fbf7f0'};
+                --color-text: ${managedSchema.globalStyles?.colors?.text || '#211815'};
             }
         `;
+        const commerceCss = getCommerceLayoutCss(storeSlug);
         return (
             <div className={`store-${storeSlug} storvia-managed-root`} onClickCapture={handleManagedLinkClick}>
-                <style dangerouslySetInnerHTML={{ __html: cssVars + scopedCss }} />
+                <style dangerouslySetInnerHTML={{ __html: cssVars + scopedCss + commerceCss }} />
 
-                {/* Google Fonts for this page */}
-                {(page.googleFontsLinks || managedSchema.pages?.[0]?.googleFontsLinks || []).map((href, idx) => (
-                    <link key={idx} rel="stylesheet" href={href} />
+                {managedFontLinks.map((href, idx) => (
+                    <link key={`${href}-${idx}`} rel="stylesheet" href={href} />
                 ))}
 
-                {/* Render all body sections directly — no max-width wrapper */}
                 {(page.sections || []).map((section, idx) => (
-                    <div key={section.id || idx}>
+                    <Fragment key={section.id || idx}>
                         {renderSectionContent(section)}
-                    </div>
+                    </Fragment>
                 ))}
             </div>
         );
@@ -1720,15 +2152,16 @@ export default function PublicStorefront({ view = "home" }) {
             .replace(/\bbody\b/g, `.store-${storeSlug}`);
         const cssVars = `
             .store-${storeSlug} {
-                --color-primary: ${managedSchema.globalStyles?.colors?.primary || '#1E8AF7'};
+                --color-primary: ${managedSchema.globalStyles?.colors?.primary || '#211815'};
                 --color-secondary: ${managedSchema.globalStyles?.colors?.secondary || '#E8F3FF'};
-                --color-background: ${managedSchema.globalStyles?.colors?.background || '#FFFFFF'};
-                --color-text: ${managedSchema.globalStyles?.colors?.text || '#0F172A'};
+                --color-background: ${managedSchema.globalStyles?.colors?.background || '#fbf7f0'};
+                --color-text: ${managedSchema.globalStyles?.colors?.text || '#211815'};
             }
         `;
+        const commerceCss = getCommerceLayoutCss(storeSlug);
         return (
             <div className={`store-${storeSlug} storvia-managed-root min-h-screen flex flex-col`} onClickCapture={handleManagedLinkClick}>
-                <style dangerouslySetInnerHTML={{ __html: cssVars + scopedCss }} />
+                <style dangerouslySetInnerHTML={{ __html: cssVars + scopedCss + commerceCss }} />
 
                 {/* Google Fonts */}
                 {(managedSchema.pages?.[0]?.googleFontsLinks || []).map((href, idx) => (
@@ -1737,7 +2170,7 @@ export default function PublicStorefront({ view = "home" }) {
 
                 {/* Imported header — rendered as raw HTML fragment */}
                 {headerSec ? (
-                    <div>{renderSectionContent(headerSec)}</div>
+                    <div style={{ display: "contents" }}>{renderSectionContent(headerSec)}</div>
                 ) : <Header />}
 
                 {/* Body content (product listing, cart, checkout, etc.) */}
@@ -1747,7 +2180,7 @@ export default function PublicStorefront({ view = "home" }) {
 
                 {/* Imported footer */}
                 {footerSec ? (
-                    <div>{renderSectionContent(footerSec)}</div>
+                    <div style={{ display: "contents" }}>{renderSectionContent(footerSec)}</div>
                 ) : <Footer />}
 
                 <MobileBottomTab />
@@ -1798,7 +2231,8 @@ export default function PublicStorefront({ view = "home" }) {
                 renderManagedLayout(<EmptyState />)
             )}
 
-            {!isEmbed && <CartDrawer />}
+            {!isEmbed && isManaged && !usesNativeCartDrawer && <DesignCartDrawer />}
+            {!isEmbed && (!isManaged || usesNativeCartDrawer) && <CartDrawer />}
         </div>
     );
 }
