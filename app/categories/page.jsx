@@ -3,6 +3,7 @@
 import { useAdmin } from "@/context/AdminContext";
 import { useState, useEffect } from "react";
 import { SearchBar, Button, Input } from "@/components/ui";
+import ProductsCatalogNav from "@/components/admin/ProductsCatalogNav";
 import { Plus, Edit2, Trash2, Tag, Layers, X } from "lucide-react";
 
 export default function CategoriesPage() {
@@ -70,11 +71,12 @@ export default function CategoriesPage() {
     }
 
     return (
-        <div className="space-y-8 animate-fadeIn">
+        <div className="space-y-6 animate-fadeIn">
+            <ProductsCatalogNav />
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
-                    <h1 className="text-4xl font-heading font-bold text-[#0a4019] italic">Collections</h1>
-                    <p className="text-[#6B6B6B] text-sm font-medium mt-1">Curate your product taxonomy and hierarchy</p>
+                    <h1 className="text-3xl font-bold text-[#0F172A]">Categories</h1>
+                    <p className="text-[#64748B] text-sm mt-1">Organize products into categories for your storefront</p>
                 </div>
 
                 <div className="flex items-center gap-4">

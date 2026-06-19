@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { resolveBackendBaseUrl } from "@/lib/apiConfig";
 import {
     Facebook,
     Database,
@@ -335,7 +336,7 @@ export default function MetaSetupWizard({
                                             <li>Go to <strong>Meta for Developers → Your App → Settings → Basic</strong></li>
                                             <li>Add <code>localhost</code> (or your domain) to <strong>App Domains</strong></li>
                                             <li>Go to <strong>Facebook Login → Settings</strong></li>
-                                            <li>Add <code>{process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"}/api/meta/oauth/callback</code> to <strong>Valid OAuth Redirect URIs</strong></li>
+                                            <li>Add <code>{resolveBackendBaseUrl()}/api/meta/oauth/callback</code> to <strong>Valid OAuth Redirect URIs</strong></li>
                                         </ol>
                                     </span>
                                 ),

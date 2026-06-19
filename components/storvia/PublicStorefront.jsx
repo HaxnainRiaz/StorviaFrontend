@@ -13,6 +13,7 @@ import {
 import { apiClient } from "@/lib/apiClient";
 import { resolveAssetUrl } from "@/lib/storeUrl";
 import { rewriteHtmlLinksClient, resolveNavigationTarget, resolvePageForView, shouldRenderFullImportedPage, isHomePageSlug } from "@/lib/storefrontRoutes";
+import { resolveProductsForSection } from "@/lib/commerceProductSource";
 
 // Pakistan-specific provinces list
 const PAKISTAN_PROVINCES = [
@@ -745,35 +746,42 @@ export default function PublicStorefront({ view = "home" }) {
         );
     };
 
-    const ProductCard = ({ product }) => {
+    const ProductCard = ({ product, showPrice = true, showAddToCart = true }) => {
         const currentPrice = product.salePrice && product.salePrice < product.price ? product.salePrice : product.price;
         const originalPrice = product.price;
         const isSale = product.salePrice && product.salePrice < product.price;
+        const isSoldOut = (product.stock || 0) <= 0;
+        const productPath = `/store/${storeSlug}/products/${product.slug || product._id}`;
         return (
             <div className="group flex flex-col bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden hover:shadow-lg transition duration-200">
-                <div className="aspect-[4/5] bg-[#F8FBFF] relative overflow-hidden">
+                <Link href={productPath} className="aspect-[4/5] bg-[#F8FBFF] relative overflow-hidden block">
                     <img src={getImageUrl(product.images?.[0], product.category)} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
                     {isSale && <span className="absolute top-2 left-2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-md">SALE</span>}
-                </div>
+                    {isSoldOut && <span className="absolute top-2 right-2 bg-neutral-800 text-white text-[9px] font-bold px-2 py-0.5 rounded-md">SOLD OUT</span>}
+                </Link>
                 <div className="p-3 flex-1 flex flex-col justify-between space-y-2">
                     <div>
-                        <h4 className="text-xs font-bold text-neutral-800 line-clamp-2">{product.title}</h4>
+                        <Link href={productPath} className="text-xs font-bold text-neutral-800 line-clamp-2 hover:text-[#1E8AF7]">{product.title}</Link>
                         <p className="text-[10px] text-neutral-400 mt-0.5 font-bold uppercase tracking-wider">{typeof product.category === "object" ? product.category?.title : product.category || "General"}</p>
                     </div>
                     <div className="flex items-center justify-between pt-1">
-                        <div className="flex flex-col">
-                            {isSale ? (
-                                <>
-                                    <span className="text-xs font-black text-red-600">Rs. {currentPrice.toLocaleString()}</span>
-                                    <span className="text-[10px] text-neutral-400 line-through">Rs. {originalPrice.toLocaleString()}</span>
-                                </>
-                            ) : (
-                                <span className="text-xs font-black text-neutral-800">Rs. {originalPrice.toLocaleString()}</span>
-                            )}
-                        </div>
-                        <button onClick={() => addToCart(product, 1)} className="p-2 bg-[#1E8AF7] hover:bg-[#0F74D8] text-white rounded-xl transition">
-                            <Plus size={12} />
-                        </button>
+                        {showPrice ? (
+                            <div className="flex flex-col">
+                                {isSale ? (
+                                    <>
+                                        <span className="text-xs font-black text-red-600">Rs. {currentPrice.toLocaleString()}</span>
+                                        <span className="text-[10px] text-neutral-400 line-through">Rs. {originalPrice.toLocaleString()}</span>
+                                    </>
+                                ) : (
+                                    <span className="text-xs font-black text-neutral-800">Rs. {originalPrice.toLocaleString()}</span>
+                                )}
+                            </div>
+                        ) : <span />}
+                        {showAddToCart && (
+                            <button onClick={() => addToCart(product, 1)} disabled={isSoldOut} className="p-2 bg-[#1E8AF7] hover:bg-[#0F74D8] text-white rounded-xl transition disabled:opacity-50">
+                                <Plus size={12} />
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -1532,22 +1540,32 @@ export default function PublicStorefront({ view = "home" }) {
             case "dynamic_footer":
                 return <Footer />;
             case "dynamic_product_grid":
-            case "dynamic_featured_products":
+            case "dynamic_featured_products": {
+                const gridConfig = section.config || {};
+                const gridProducts = resolveProductsForSection(products, gridConfig);
+                const cols = gridConfig.gridColumns || 4;
+                const colClass = cols === 2 ? "grid-cols-2" : cols === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-4";
                 return (
-                    <div className="mx-auto max-w-7xl px-6 py-10">
-                        <div className="flex items-end justify-between border-b pb-4 mb-8 border-[#E2E8F0]">
-                            <div>
-                                <span className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-[0.15em] block mb-1">HANDPICKED ITEMS</span>
-                                <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#0F172A]">Featured Products</h2>
+                    <div className="storvia-product-grid mx-auto max-w-7xl px-6 py-10" data-binding="product_grid">
+                        {gridProducts.length === 0 ? (
+                            <div className="py-12 text-center text-xs font-bold text-neutral-400 border border-dashed rounded-2xl">
+                                No products available yet. Add products in your admin panel.
                             </div>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                            {products.slice(0, section.config?.limit || 8).map((prod) => (
-                                <ProductCard key={prod._id} product={prod} />
-                            ))}
-                        </div>
+                        ) : (
+                            <div className={`grid ${colClass} gap-6`}>
+                                {gridProducts.map((prod) => (
+                                    <ProductCard
+                                        key={prod._id}
+                                        product={prod}
+                                        showPrice={gridConfig.showPrice !== false}
+                                        showAddToCart={gridConfig.showAddToCart !== false}
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </div>
                 );
+            }
             case "dynamic_contact":
                 return (
                     <div className="mx-auto max-w-xl px-6 py-10">
@@ -1556,8 +1574,31 @@ export default function PublicStorefront({ view = "home" }) {
                 );
             case "dynamic_cart_button":
                 return (
-                    <button onClick={() => setIsCartOpen(true)} className="flex items-center gap-2 bg-[#1E8AF7] hover:bg-[#0F74D8] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition">
-                        <ShoppingBag size={16} /> Open Cart
+                    <button
+                        type="button"
+                        onClick={() => setIsCartOpen(true)}
+                        className="storvia-cart-button relative flex items-center gap-2"
+                        data-binding="cart_button"
+                        aria-label="Open cart"
+                    >
+                        <ShoppingBag size={18} />
+                        {cart.length > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white bg-[#1E8AF7]">
+                                {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                            </span>
+                        )}
+                    </button>
+                );
+            case "dynamic_search_button":
+                return (
+                    <button
+                        type="button"
+                        onClick={() => router.push(`/store/${storeSlug}/products`)}
+                        className="storvia-search-button flex items-center gap-2"
+                        data-binding="search_input"
+                        aria-label="Search products"
+                    >
+                        <Search size={18} />
                     </button>
                 );
             case "static_or_mapped":
@@ -1596,6 +1637,10 @@ export default function PublicStorefront({ view = "home" }) {
         }
         if (target.action === "navigate" && target.path) {
             event.preventDefault();
+            if (target.path.endsWith("/cart")) {
+                setIsCartOpen(true);
+                return;
+            }
             router.push(target.path);
         }
     }, [isManaged, managedSchema?.pages, routeMap, router, storeSlug]);

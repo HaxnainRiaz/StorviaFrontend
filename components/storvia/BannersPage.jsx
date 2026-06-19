@@ -1,6 +1,7 @@
 "use client";
 
 import { useAdmin } from "@/context/AdminContext";
+import MarketingSubNav from "@/components/admin/MarketingSubNav";
 import { Card, PrimaryButton, SellerPageScaffold } from "./SellerPageScaffold";
 
 export default function BannersPage() {
@@ -15,7 +16,9 @@ export default function BannersPage() {
     });
 
     return (
-        <SellerPageScaffold title="Banners" description="Schedule homepage and campaign banners for the current store." actions={<PrimaryButton onClick={create}>Create banner</PrimaryButton>}>
+        <div className="space-y-6">
+            <MarketingSubNav />
+            <SellerPageScaffold title="Banners" description="Schedule homepage and campaign banners for the current store." actions={<PrimaryButton onClick={create}>Create banner</PrimaryButton>}>
             <div className="grid gap-4 md:grid-cols-2">
                 {banners.map(banner => (
                     <Card key={banner._id}>
@@ -31,6 +34,7 @@ export default function BannersPage() {
                 ))}
                 {!banners.length && <Card className="md:col-span-2 text-center text-sm font-semibold text-[#64748B]">No banners yet.</Card>}
             </div>
-        </SellerPageScaffold>
+            </SellerPageScaffold>
+        </div>
     );
 }

@@ -340,10 +340,10 @@ export default function OnboardingPage() {
 
     const saveProductConnection = async () => {
         setSaving(true);
-        // Encode product connection in a managed storefront update
+        await adminRequest("/seller/managed-storefront/commerce-bindings/auto-detect", "POST");
         const res = await adminRequest("/seller/managed-storefront/product-mapping", "PATCH", {
-            pageId: "home", sectionId: "products_section_0",
-            source: productSource, limit: productLimit
+            source: productSource === "newest" ? "newest_products" : productSource,
+            limit: productLimit,
         });
         setSaving(false);
         if (res?.success) {

@@ -1,11 +1,26 @@
 "use client";
 
-import { Edit, Trash2, Globe, EyeOff, FileText, MoreVertical } from "lucide-react";
+import { Edit, Trash2, Globe, EyeOff, FileText } from "lucide-react";
 import { useState } from "react";
 import { formatPrice } from "@/lib/utils";
 import AdminTable from "./AdminTable";
 import { resolveImageUrl } from "@/utils/upload";
 import { useAdmin } from "@/context/AdminContext";
+
+const PRODUCT_TYPE_LABELS = {
+    featured: "Featured",
+    best_seller: "Best seller",
+    new_arrival: "New arrival",
+    standard: "Standard",
+};
+
+function resolveProductType(product) {
+    if (product?.productType && product.productType !== "standard") return product.productType;
+    if (product?.isFeatured) return "featured";
+    if (product?.isBestSeller) return "best_seller";
+    if (product?.isNewArrival) return "new_arrival";
+    return "standard";
+}
 
 const ProductTable = ({ products, onEdit, onDelete, onBulkDelete }) => {
     const [selectedProducts, setSelectedProducts] = useState([]);
@@ -92,7 +107,7 @@ const ProductTable = ({ products, onEdit, onDelete, onBulkDelete }) => {
     return (
         <div className="space-y-4">
             {selectedProducts.length > 0 && (
-                <div className="bg-[#0a4019] text-white px-6 py-3 rounded-xl flex items-center justify-between animate-fadeIn">
+                <div className="bg-[#1E8AF7] text-white px-6 py-3 rounded-xl flex items-center justify-between animate-fadeIn">
                     <span className="text-sm font-medium">{selectedProducts.length} products selected</span>
                     <div className="flex gap-4">
                         <button className="text-sm hover:underline font-bold">Bulk Publish</button>
@@ -101,7 +116,7 @@ const ProductTable = ({ products, onEdit, onDelete, onBulkDelete }) => {
                 </div>
             )}
 
-            <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgba(11,47,38,0.08)] border border-[#F5F3F0] overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] overflow-hidden">
                 <AdminTable
                     columns={[
                         {
@@ -111,7 +126,7 @@ const ProductTable = ({ products, onEdit, onDelete, onBulkDelete }) => {
                                     type="checkbox"
                                     onChange={table.getToggleAllRowsSelectedHandler()}
                                     checked={table.getIsAllRowsSelected()}
-                                    className="w-4 h-4 rounded border-neutral-300 text-[#0a4019] cursor-pointer"
+                                    className="w-4 h-4 rounded border-neutral-300 text-[#1E8AF7] cursor-pointer"
                                 />
                             ),
                             cell: ({ row }) => (
@@ -120,7 +135,7 @@ const ProductTable = ({ products, onEdit, onDelete, onBulkDelete }) => {
                                     checked={row.getIsSelected()}
                                     onChange={row.getToggleSelectedHandler()}
                                     onClick={(e) => e.stopPropagation()}
-                                    className="w-4 h-4 rounded border-neutral-300 text-[#0a4019] cursor-pointer"
+                                    className="w-4 h-4 rounded border-neutral-300 text-[#1E8AF7] cursor-pointer"
                                 />
                             ),
                         },
@@ -131,19 +146,19 @@ const ProductTable = ({ products, onEdit, onDelete, onBulkDelete }) => {
                                 const product = row.original;
                                 return (
                                     <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 relative rounded-xl overflow-hidden bg-neutral-100 shrink-0 border border-[#F5F3F0]/50 shadow-sm">
+                                        <div className="w-14 h-14 relative rounded-xl overflow-hidden bg-neutral-100 shrink-0 border border-[#E2E8F0]">
                                             <img
                                                 src={resolveImageUrl(product.images?.[0])}
                                                 alt={product.title}
                                                 className="w-full h-full object-cover"
                                                 onError={(e) => {
-                                                    e.target.src = "https://placehold.co/100x100/F5F3F0/0a4019?text=Error";
+                                                    e.target.src = "https://placehold.co/100x100/F8FBFF/64748B?text=No+Image";
                                                 }}
                                             />
                                         </div>
                                         <div>
-                                            <p className="font-heading font-bold text-[#0a4019]">{product.title}</p>
-                                            <p className="text-xs text-[#6B6B6B] mt-0.5 font-medium">SKU-{product._id?.toString().substring(18) || 'NEW'}</p>
+                                            <p className="font-bold text-[#0F172A]">{product.title}</p>
+                                            <p className="text-xs text-[#64748B] mt-0.5">{product.slug}</p>
                                         </div>
                                     </div>
                                 );
@@ -165,7 +180,7 @@ const ProductTable = ({ products, onEdit, onDelete, onBulkDelete }) => {
                                 const product = row.original;
                                 return (
                                     <div className="flex flex-col">
-                                        <span className="font-bold text-[#0a4019]">
+                                        <span className="font-bold text-[#0F172A]">
                                             {formatPrice(product.salePrice ?? product.price)}
                                         </span>
                                         {product.salePrice && (
@@ -176,7 +191,27 @@ const ProductTable = ({ products, onEdit, onDelete, onBulkDelete }) => {
                             }
                         },
                         {
-                            accessorKey: 'stock',
+                            id: 'productType',
+                            header: 'Type',
+                            cell: ({ row }) => {
+                                const type = resolveProductType(row.original);
+                                const label = PRODUCT_TYPE_LABELS[type] || 'Standard';
+                                const tone = type === 'featured'
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : type === 'best_seller'
+                                        ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                        : type === 'new_arrival'
+                                            ? 'bg-sky-50 text-sky-700 border-sky-200'
+                                            : 'bg-neutral-50 text-neutral-500 border-neutral-200';
+                                return (
+                                    <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${tone}`}>
+                                        {label}
+                                    </span>
+                                );
+                            }
+                        },
+                        {
+                            id: 'stock',
                             header: 'Stock',
                             cell: ({ row }) => (
                                 <div className="flex flex-col">
@@ -209,7 +244,7 @@ const ProductTable = ({ products, onEdit, onDelete, onBulkDelete }) => {
                                 <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
                                     <button
                                         onClick={() => onEdit(row.original)}
-                                        className="p-2 text-neutral-400 hover:text-[#0a4019] hover:bg-[#F5F3F0] rounded-xl transition-all"
+                                        className="p-2 text-neutral-400 hover:text-[#1E8AF7] hover:bg-[#E8F3FF] rounded-xl transition-all"
                                         title="Edit Product"
                                     >
                                         <Edit size={18} />
@@ -220,9 +255,6 @@ const ProductTable = ({ products, onEdit, onDelete, onBulkDelete }) => {
                                         title="Delete Product"
                                     >
                                         <Trash2 size={18} />
-                                    </button>
-                                    <button className="p-2 text-neutral-400 hover:text-[#0a4019] rounded-xl transition-all">
-                                        <MoreVertical size={18} />
                                     </button>
                                 </div>
                             )

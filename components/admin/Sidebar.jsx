@@ -8,6 +8,7 @@ import { useAdmin } from "@/context/AdminContext";
 import { buildStoreUrl } from "@/lib/storeUrl";
 import {
     BarChart3,
+    Boxes,
     ChevronDown,
     ChevronLeft,
     ChevronRight,
@@ -25,6 +26,8 @@ import {
     ShoppingBag,
     Star,
     Store,
+    Tag,
+    TicketPercent,
     Truck,
     Users,
     X,
@@ -36,8 +39,15 @@ const navGroups = [
         items: [
             { label: "Dashboard", href: "/app/dashboard", icon: LayoutDashboard },
             { label: "Orders", href: "/app/orders", icon: ShoppingBag },
-            { label: "Products", href: "/app/products", icon: Package },
             { label: "Customers", href: "/app/customers", icon: Users },
+        ],
+    },
+    {
+        title: "Catalog",
+        items: [
+            { label: "Products", href: "/app/products", icon: Package },
+            { label: "Categories", href: "/app/products/categories", icon: Tag },
+            { label: "Inventory", href: "/app/products/inventory", icon: Boxes },
         ],
     },
     {
@@ -52,7 +62,8 @@ const navGroups = [
     {
         title: "Growth",
         items: [
-            { label: "Marketing", href: "/app/marketing", icon: Megaphone },
+            { label: "Discounts", href: "/app/marketing/coupons", icon: TicketPercent },
+            { label: "Marketing", href: "/app/marketing/banners", icon: Megaphone },
             { label: "Meta", href: "/app/meta", icon: Facebook },
             { label: "Analytics", href: "/app/analytics", icon: BarChart3 },
         ],
@@ -74,16 +85,27 @@ const navGroups = [
     },
 ];
 
+function isNavItemActive(pathname, href) {
+    if (pathname === href) return true;
+    if (href === "/app/products") {
+        const catalogOnly = ["/app/products/categories", "/app/products/inventory", "/app/products/collections"];
+        if (catalogOnly.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return false;
+    }
+    if (href === "/app/marketing/coupons") {
+        return pathname.startsWith("/app/marketing/");
+    }
+    return pathname.startsWith(`${href}/`);
+}
 function SidebarGroup({ group, pathname, collapsed, defaultOpen = false, closeMobile }) {
     const [open, setOpen] = useState(defaultOpen);
-    const hasActive = group.items.some(item => pathname === item.href || pathname.startsWith(`${item.href}/`));
+    const hasActive = group.items.some((item) => isNavItemActive(pathname, item.href));
     const expanded = open || hasActive;
 
     if (collapsed) {
         return (
             <div className="space-y-1">
                 {group.items.map(item => {
-                    const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                    const active = isNavItemActive(pathname, item.href);
                     return (
                         <Link key={item.href} href={item.href} title={item.label} onClick={closeMobile} className={`flex h-11 w-11 items-center justify-center rounded-xl transition ${active ? "bg-[#1E8AF7] text-white shadow-md shadow-blue-100" : "text-[#64748B] hover:bg-white hover:text-[#0F172A]"}`}>
                             <item.icon size={18} />
@@ -103,7 +125,7 @@ function SidebarGroup({ group, pathname, collapsed, defaultOpen = false, closeMo
             {expanded && (
                 <div className="space-y-1">
                     {group.items.map(item => {
-                        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                        const active = isNavItemActive(pathname, item.href);
                         return (
                             <Link key={item.href} href={item.href} onClick={closeMobile} className={`flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-bold transition ${active ? "bg-[#1E8AF7] text-white shadow-md shadow-blue-100" : "text-[#475569] hover:bg-white hover:text-[#0F172A]"}`}>
                                 <item.icon size={18} />
@@ -155,7 +177,7 @@ export default function Sidebar() {
     const { logout, user } = useAuth();
     const { activeStore } = useAdmin();
 
-    const firstGroupWithActive = useMemo(() => navGroups.findIndex(group => group.items.some(item => pathname === item.href || pathname.startsWith(`${item.href}/`))), [pathname]);
+    const firstGroupWithActive = useMemo(() => navGroups.findIndex(group => group.items.some(item => isNavItemActive(pathname, item.href))), [pathname]);
 
     const content = (
         <aside className={`flex h-full flex-col border-r border-[#E2E8F0] bg-[#F6FAFF] px-3 py-4 transition-all ${collapsed ? "w-[76px]" : "w-72"}`}>

@@ -1,4 +1,6 @@
-const baseUrl = (process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:5000').replace(/\/+$/, '').replace(/\/api$/, '');
+import { resolveBackendBaseUrl } from '../lib/apiConfig.js';
+
+const baseUrl = resolveBackendBaseUrl();
 const apiBase = `${baseUrl}/api`;
 const token = process.env.TEST_AUTH_TOKEN || '';
 const storeSlug = process.env.TEST_STORE_SLUG || '';

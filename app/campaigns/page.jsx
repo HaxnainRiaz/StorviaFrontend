@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Button, Input } from "@/components/ui";
 import { Plus, Megaphone, Calendar, DollarSign, BarChart2, Users, Eye, X, Award } from "lucide-react";
 import toast from "react-hot-toast";
+import MarketingSubNav from "@/components/admin/MarketingSubNav";
 
 export default function CampaignsPage() {
     const [campaigns, setCampaigns] = useState([
@@ -74,7 +75,8 @@ export default function CampaignsPage() {
     };
 
     return (
-        <div className="space-y-8 animate-fadeIn">
+        <div className="space-y-6 animate-fadeIn">
+            <MarketingSubNav />
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>

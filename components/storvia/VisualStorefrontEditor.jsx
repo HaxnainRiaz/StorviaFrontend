@@ -82,6 +82,8 @@ export default function VisualStorefrontEditor() {
     const [dirty, setDirty] = useState(false);
     const [saving, setSaving] = useState(false);
     const [publishing, setPublishing] = useState(false);
+    const [publishChecklist, setPublishChecklist] = useState(null);
+    const [commerceBindings, setCommerceBindings] = useState([]);
     const [inlineEdit, setInlineEdit] = useState(null);
     const canvasRef = useRef(null);
 
@@ -103,6 +105,18 @@ export default function VisualStorefrontEditor() {
     }, [adminRequest, currentPageId]);
 
     useEffect(() => { loadSchema("home"); }, []);
+
+    const loadCommerceBindings = useCallback(async () => {
+        try {
+            const res = await adminRequest("/seller/managed-storefront/commerce-bindings");
+            if (res?.success) {
+                setCommerceBindings(res.data || []);
+                setPublishChecklist(res.checklist || null);
+            }
+        } catch { /* non-fatal */ }
+    }, [adminRequest]);
+
+    useEffect(() => { loadCommerceBindings(); }, [loadCommerceBindings]);
 
     const currentPage = useMemo(() => {
         if (!schema) return null;
@@ -191,14 +205,29 @@ export default function VisualStorefrontEditor() {
 
     const publish = async () => {
         setPublishing(true);
-        const res = await adminRequest("/seller/managed-storefront/publish", "POST");
+        await adminRequest("/seller/managed-storefront/commerce-bindings/auto-detect", "POST");
+        const res = await adminRequest("/seller/managed-storefront/publish", "POST", { strict: true });
         setPublishing(false);
         if (res?.success) {
             toast.success("Storefront published.");
             setDirty(false);
             window.dispatchEvent(new Event("storvia:store-updated"));
+            loadCommerceBindings();
         } else {
-            toast.error(res?.message || "Publish failed.");
+            if (res?.checklist) setPublishChecklist(res.checklist);
+            toast.error(res?.message || "Publish failed. Check commerce binding checklist.");
+        }
+    };
+
+    const autoDetectBindings = async () => {
+        const res = await adminRequest("/seller/managed-storefront/commerce-bindings/auto-detect", "POST");
+        if (res?.success) {
+            setCommerceBindings(res.data || []);
+            setPublishChecklist(res.checklist || null);
+            toast.success("Commerce bindings auto-detected.");
+            loadSchema(currentPageId);
+        } else {
+            toast.error(res?.message || "Auto-detect failed.");
         }
     };
 
@@ -319,9 +348,33 @@ export default function VisualStorefrontEditor() {
                             </div>
                         ))}
                         {leftTab === "mappings" && (
-                            <Link href="/app/storefront/links" className="text-xs font-bold text-[#1E8AF7] hover:underline">
-                                Open Route Map →
-                            </Link>
+                            <div className="space-y-3">
+                                <button onClick={autoDetectBindings} className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FBFF] py-2 text-xs font-bold text-[#1E8AF7] hover:bg-[#EFF6FF]">
+                                    Auto-detect commerce bindings
+                                </button>
+                                <div className="rounded-lg border border-[#E2E8F0] p-3 space-y-2">
+                                    <p className="text-[10px] font-bold uppercase text-[#94A3B8]">Publish checklist</p>
+                                    {(publishChecklist?.issues || []).length === 0 ? (
+                                        <p className="text-xs font-bold text-emerald-600">Ready to publish</p>
+                                    ) : (
+                                        publishChecklist.issues.map((issue, i) => (
+                                            <p key={i} className="text-xs font-semibold text-amber-700">{issue.message}</p>
+                                        ))
+                                    )}
+                                </div>
+                                {commerceBindings.map((b, i) => (
+                                    <div key={i} className="rounded-lg border border-[#E2E8F0] p-2 text-xs">
+                                        <span className={`inline-block rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${b.status === "mapped" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                                            {b.status}
+                                        </span>
+                                        <p className="mt-1 font-bold text-[#0F172A]">{b.bindingType}</p>
+                                        <p className="text-[10px] text-[#94A3B8]">{b.sourceLabel || b.sourceSelector}</p>
+                                    </div>
+                                ))}
+                                <Link href="/app/storefront/links" className="block text-xs font-bold text-[#1E8AF7] hover:underline">
+                                    Open Route Map →
+                                </Link>
+                            </div>
                         )}
                     </div>
                 </aside>

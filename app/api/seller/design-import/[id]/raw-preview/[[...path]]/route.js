@@ -1,9 +1,5 @@
 import { cookies } from "next/headers";
-
-const getBackendApiUrl = () => {
-    const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/+$/, "");
-    return base.endsWith("/api") ? base : `${base}/api`;
-};
+import { getApiBaseUrl } from "@/lib/apiConfig";
 
 export async function GET(request, { params }) {
     const { id, path = [] } = await params;
@@ -12,7 +8,7 @@ export async function GET(request, { params }) {
     if (!token) return new Response("Unauthorized", { status: 401 });
 
     const suffix = path.length ? `/${path.map(encodeURIComponent).join("/")}` : "/index.html";
-    const response = await fetch(`${getBackendApiUrl()}/seller/design-import/${encodeURIComponent(id)}/raw-preview${suffix}`, {
+    const response = await fetch(`${getApiBaseUrl()}/seller/design-import/${encodeURIComponent(id)}/raw-preview${suffix}`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
     });

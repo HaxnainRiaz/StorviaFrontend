@@ -700,14 +700,20 @@ function TabNavigation({ adminRequest }) {
 
 // ─── TAB: Products ────────────────────────────────────────────────────────────
 function TabProducts({ adminRequest }) {
-    const [config, setConfig] = useState({ source: "newest", limit: 8, showPrice: true, showAddToCart: true, gridColumns: 4 });
+    const [config, setConfig] = useState({ source: "newest_products", limit: 8, showPrice: true, showAddToCart: true, gridColumns: 4, pageId: "home", sectionId: "" });
+    const [availableSections, setAvailableSections] = useState([]);
     const [dirty, setDirty] = useState(false);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         const load = async () => {
             const res = await adminRequest("/seller/managed-storefront/product-mapping");
-            if (res?.success && res.data) setConfig(prev => ({ ...prev, ...res.data }));
+            if (res?.success && res.data) {
+                setConfig((prev) => ({ ...prev, ...res.data }));
+            }
+            if (res?.availableSections) {
+                setAvailableSections(res.availableSections);
+            }
         };
         load();
     }, [adminRequest]);
@@ -716,10 +722,10 @@ function TabProducts({ adminRequest }) {
 
     const save = async () => {
         setSaving(true);
-        const res = await adminRequest("/seller/managed-storefront/product-mapping", "PATCH", { pageId: "home", sectionId: "main_products", ...config });
+        const res = await adminRequest("/seller/managed-storefront/product-mapping", "PATCH", config);
         setSaving(false);
         if (res?.success) { toast.success("Product grid settings saved."); setDirty(false); }
-        else toast.error("Failed to save product settings.");
+        else toast.error(res?.message || "Failed to save product settings.");
     };
 
     return (
@@ -728,9 +734,18 @@ function TabProducts({ adminRequest }) {
                 <strong>Commerce is always Storvia-controlled.</strong> Product data, inventory, cart, checkout, payments, and order management are fully managed by Storvia. Your imported design only displays products.
             </Banner>
             <div className="rounded-xl border border-[#E2E8F0] bg-white p-4 space-y-5">
+                {availableSections.length > 1 && (
+                    <Field label="Product grid section">
+                        <select value={config.sectionId || ""} onChange={(e) => update("sectionId", e.target.value)} className="h-10 w-full rounded-lg border border-[#E2E8F0] bg-[#F8FBFF] px-3 text-xs font-bold outline-none focus:border-[#1E8AF7]">
+                            {availableSections.map((s) => (
+                                <option key={s.sectionId} value={s.sectionId}>{s.label || s.sectionId} ({s.pageId})</option>
+                            ))}
+                        </select>
+                    </Field>
+                )}
                 <Field label="Product source for homepage grid">
                     <div className="grid gap-2 sm:grid-cols-2">
-                        {[["newest", "Newest products"], ["best_sellers", "Best sellers"], ["featured", "Featured products"], ["manual", "Manually selected"]].map(([v, l]) => (
+                        {[["newest_products", "Newest products"], ["best_sellers", "Best sellers"], ["new_arrival", "New arrivals"], ["featured_products", "Featured products"], ["manual_products", "Manually selected"]].map(([v, l]) => (
                             <button key={v} onClick={() => update("source", v)} className={`rounded-xl border p-3 text-left transition text-xs font-black ${config.source === v ? "border-[#1E8AF7] bg-[#E8F3FF]" : "border-[#E2E8F0] bg-white hover:border-[#93C5FD]"}`}>
                                 {config.source === v && <Check size={12} className="inline mr-1 text-[#1E8AF7]" />}{l}
                             </button>

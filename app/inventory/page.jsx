@@ -5,6 +5,7 @@ import { useToast } from "@/context/ToastContext";
 import { useState, useEffect } from "react";
 import { Search, AlertTriangle, CheckCircle, Package, Trash2, Plus, ArrowLeftRight, Save } from "lucide-react";
 import { SearchBar, Button } from "@/components/ui";
+import ProductsCatalogNav from "@/components/admin/ProductsCatalogNav";
 import Link from "next/link";
 import AdminTable from "@/components/admin/AdminTable";
 import { resolveImageUrl } from "@/utils/upload";
@@ -86,11 +87,12 @@ export default function InventoryPage() {
     }
 
     return (
-        <div className="space-y-8 animate-fadeIn text-primary">
+        <div className="space-y-6 animate-fadeIn">
+            <ProductsCatalogNav />
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
-                    <h1 className="text-4xl font-heading font-bold text-[#0a4019] italic">Inventory Desk</h1>
-                    <p className="text-[#6B6B6B] text-sm font-medium mt-1">Global logistics and supply chain optimization</p>
+                    <h1 className="text-3xl font-bold text-[#0F172A]">Inventory</h1>
+                    <p className="text-[#64748B] text-sm mt-1">Track stock levels and update available quantities</p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 items-center gap-2 md:gap-4">
@@ -101,14 +103,14 @@ export default function InventoryPage() {
                         icon={Save}
                         className="px-8 w-full"
                     >
-                        Sync All Changes
+                        Save all changes
                     </Button>
-                    <Link href="/products">
+                    <Link href="/app/products">
                         <Button
                             variant="primary"
                             icon={Plus}
                             className="px-8 w-full">
-                            Launch New
+                            Add product
                         </Button>
                     </Link>
                 </div>

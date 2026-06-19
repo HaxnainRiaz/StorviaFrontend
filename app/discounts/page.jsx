@@ -5,13 +5,18 @@ import { useToast } from "@/context/ToastContext";
 import { useState, useEffect } from "react";
 import { TicketPercent, Plus, Trash2, Copy, Check, X, Save, Calendar, DollarSign, Zap, ChevronDown, Package, ShoppingCart, Gift } from "lucide-react";
 import { Input, Dropdown, Button, MultiSelect } from "@/components/ui";
+import MarketingSubNav from "@/components/admin/MarketingSubNav";
 import { formatPrice } from "@/lib/utils";
 
 export default function DiscountsPage() {
-    const { coupons, addCoupon, deleteCoupon, updateSettings, settings, loading, products } = useAdmin();
+    const { coupons, addCoupon, deleteCoupon, updateSettings, settings, loading, products, fetchCoupons } = useAdmin();
     const { addToast } = useToast();
     const [copiedId, setCopiedId] = useState(null);
     const [showModal, setShowModal] = useState(false);
+
+    useEffect(() => {
+        fetchCoupons();
+    }, [fetchCoupons]);
 
     const [newDiscount, setNewDiscount] = useState({
         code: "",
@@ -112,11 +117,12 @@ export default function DiscountsPage() {
     }
 
     return (
-        <div className="space-y-10 animate-fadeIn">
+        <div className="space-y-6 animate-fadeIn">
+            <MarketingSubNav />
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
-                    <h1 className="text-4xl font-heading font-bold text-[#0a4019] italic">Promotions</h1>
-                    <p className="text-[#6B6B6B] text-sm font-medium mt-1">Deploy automated incentives across the estate</p>
+                    <h1 className="text-3xl font-bold text-[#0F172A]">Discounts & Coupons</h1>
+                    <p className="text-[#64748B] text-sm mt-1">Create coupon codes for your storefront checkout</p>
                 </div>
 
                 <button
