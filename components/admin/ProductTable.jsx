@@ -118,8 +118,7 @@ const ProductTable = ({ products, onEdit, onDelete, onBulkDelete }) => {
                 </div>
             )}
 
-            <div className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] overflow-hidden">
-                <AdminTable
+            <AdminTable
                     columns={[
                         {
                             id: 'select',
@@ -264,7 +263,6 @@ const ProductTable = ({ products, onEdit, onDelete, onBulkDelete }) => {
                     ]}
                     data={products}
                 />
-            </div>
         </div>
     );
 };

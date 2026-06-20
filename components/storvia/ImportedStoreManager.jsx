@@ -30,6 +30,13 @@ const TABS = [
     { id: "settings",    label: "Settings",       icon: Settings },
 ];
 
+const TAB_GROUPS = [
+    { label: "Start", items: ["overview", "import"] },
+    { label: "Build", items: ["content", "images", "colors", "navigation", "products", "links", "seo"] },
+    { label: "Review", items: ["preview", "versions"] },
+    { label: "Store", items: ["settings"] },
+];
+
 // ─── Tiny shared primitives ───────────────────────────────────────────────────
 function Field({ label, helper, error, children }) {
     return (
@@ -1306,15 +1313,30 @@ export default function ImportedStoreManager({ initialTab = "overview" }) {
     const isEditingTab = ["content", "images", "colors", "navigation", "products", "seo"].includes(tab);
 
     return (
-        <div className="flex min-h-screen flex-col lg:flex-row">
+        <div className="flex min-h-[720px] flex-col overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-sm lg:flex-row">
             {/* Sidebar tabs */}
-            <aside className="shrink-0 border-b border-[#E2E8F0] bg-white lg:w-52 lg:border-b-0 lg:border-r">
-                <div className="flex gap-1 overflow-x-auto p-2 lg:flex-col lg:space-y-0.5">
-                    {TABS.map(({ id, label, icon: Icon }) => (
-                        <button key={id} onClick={() => setTab(id)} className={`flex min-w-max shrink-0 items-center gap-2.5 rounded-lg p-2.5 text-left transition lg:min-w-0 lg:w-full ${tab === id ? "bg-[#1E8AF7] text-white" : "text-[#64748B] hover:bg-[#F8FBFF]"}`}>
-                            <Icon size={15} className="shrink-0" />
-                            <span className="text-xs font-black">{label}</span>
-                        </button>
+            <aside className="shrink-0 border-b border-[#E2E8F0] bg-[#F8FBFF] lg:w-56 lg:border-b-0 lg:border-r">
+                <div className="border-b border-[#E2E8F0] px-4 py-4">
+                    <p className="text-xs font-black text-[#0F172A]">Storefront</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-[#64748B]">Build, review, then publish.</p>
+                </div>
+                <div className="flex gap-2 overflow-x-auto p-3 lg:block lg:space-y-4">
+                    {TAB_GROUPS.map(group => (
+                        <div key={group.label} className="min-w-max lg:min-w-0">
+                            <p className="mb-1 hidden px-2 text-[9px] font-black uppercase tracking-[0.16em] text-[#94A3B8] lg:block">{group.label}</p>
+                            <div className="flex gap-1 lg:block lg:space-y-0.5">
+                                {group.items.map(id => {
+                                    const item = TABS.find(entry => entry.id === id);
+                                    const Icon = item.icon;
+                                    return (
+                                        <button key={id} onClick={() => setTab(id)} className={`flex min-w-max shrink-0 items-center gap-2.5 rounded-lg px-3 py-2.5 text-left transition lg:w-full lg:min-w-0 ${tab === id ? "bg-[#1E8AF7] text-white shadow-sm" : "text-[#64748B] hover:bg-white hover:text-[#1E8AF7]"}`}>
+                                            <Icon size={15} className="shrink-0" />
+                                            <span className="text-xs font-black">{item.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     ))}
                 </div>
             </aside>
@@ -1322,8 +1344,13 @@ export default function ImportedStoreManager({ initialTab = "overview" }) {
             {/* Content & optional preview split */}
             <div className="flex-1 flex flex-col min-w-0">
                 <div className="border-b border-[#E2E8F0] bg-white px-5 py-4">
-                    <p className="text-[11px] font-bold text-[#1E8AF7]">Storefront Manager</p>
-                    <h2 className="text-lg font-black text-[#0F172A]">{activeTab?.label}</h2>
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <p className="text-[11px] font-bold text-[#1E8AF7]">Storefront Manager</p>
+                            <h2 className="text-lg font-black text-[#0F172A]">{activeTab?.label}</h2>
+                        </div>
+                        {storefrontStatus?.status === "published" && <span className="rounded-full bg-[#DCFCE7] px-3 py-1 text-[10px] font-black text-[#166534]">Live</span>}
+                    </div>
                 </div>
                 
                 <div className="flex-1 flex flex-col lg:flex-row min-h-0">

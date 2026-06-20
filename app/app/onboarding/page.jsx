@@ -27,6 +27,13 @@ const steps = [
     { key: "publish",             label: "Publish",            description: "Launch your managed store",       icon: Rocket },
 ];
 
+const SETUP_PHASES = [
+    { label: "Basics", description: "Store identity", start: 0, end: 0, icon: Store },
+    { label: "Design", description: "Import and prepare", start: 1, end: 5, icon: Palette },
+    { label: "Operations", description: "Delivery and discovery", start: 6, end: 7, icon: Truck },
+    { label: "Launch", description: "Review and publish", start: 8, end: 9, icon: Rocket },
+];
+
 const REQUIRED_STEPS = ["store_identity", "business_settings"];
 const slugify = (v) => String(v || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
@@ -100,22 +107,43 @@ function InfoBanner({ icon: Icon, color, children }) {
 
 // ─── Stepper sidebar ──────────────────────────────────────────────────────────
 function Stepper({ current, completed, goTo }) {
+    const activePhase = SETUP_PHASES.findIndex(phase => current >= phase.start && current <= phase.end);
+    const phase = SETUP_PHASES[activePhase];
     return (
-        <aside className="rounded-xl border border-[#E2E8F0] bg-white p-2 shadow-sm lg:sticky lg:top-4">
-            <div className="flex gap-1.5 overflow-x-auto lg:block lg:space-y-0.5">
-                {steps.map((step, idx) => {
+        <aside className="rounded-2xl border border-[#E2E8F0] bg-white p-3 shadow-sm lg:sticky lg:top-24">
+            <p className="px-2 pb-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#94A3B8]">Setup journey</p>
+            <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-1">
+                {SETUP_PHASES.map((item, phaseIndex) => {
+                    const Icon = item.icon;
+                    const done = steps.slice(item.start, item.end + 1).every(step => completed.includes(step.key));
+                    const active = phaseIndex === activePhase;
+                    return (
+                        <button key={item.label} onClick={() => goTo(item.start)} className={`flex items-center gap-3 rounded-xl p-3 text-left transition ${active ? "bg-[#EFF6FF] ring-1 ring-[#93C5FD]" : "hover:bg-[#F8FBFF]"}`}>
+                            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${done ? "bg-[#DCFCE7] text-[#16A34A]" : active ? "bg-[#1E8AF7] text-white" : "bg-[#F1F5F9] text-[#64748B]"}`}>
+                                {done ? <Check size={15} /> : <Icon size={15} />}
+                            </span>
+                            <span className="min-w-0">
+                                <span className={`block text-xs font-black ${active ? "text-[#1E8AF7]" : "text-[#0F172A]"}`}>{phaseIndex + 1}. {item.label}</span>
+                                <span className="block truncate text-[10px] font-semibold text-[#64748B]">{item.description}</span>
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+            <div className="my-3 border-t border-[#E2E8F0]" />
+            <p className="px-2 pb-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#94A3B8]">{phase.label} tasks</p>
+            <div className="space-y-1">
+                {steps.slice(phase.start, phase.end + 1).map((step, offset) => {
+                    const idx = phase.start + offset;
                     const Icon = step.icon;
                     const done = completed.includes(step.key);
                     const active = current === idx;
                     return (
-                        <button key={step.key} onClick={() => goTo(idx)} className={`flex min-w-36 items-center gap-2 rounded-lg p-2 text-left transition lg:min-w-0 lg:w-full ${active ? "bg-[#1E8AF7] text-white" : "hover:bg-[#F8FBFF]"}`}>
-                            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10px] font-black ${active ? "bg-white/20" : done ? "bg-[#DCFCE7] text-[#16A34A]" : "bg-[#E8F3FF] text-[#1E8AF7]"}`}>
+                        <button key={step.key} onClick={() => goTo(idx)} className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition ${active ? "bg-[#1E8AF7] text-white" : "hover:bg-[#F8FBFF]"}`}>
+                            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${active ? "bg-white/20" : done ? "bg-[#DCFCE7] text-[#16A34A]" : "bg-[#E8F3FF] text-[#1E8AF7]"}`}>
                                 {done ? <Check size={11} /> : <Icon size={11} />}
                             </span>
-                            <span className="min-w-0">
-                                <span className={`block truncate text-[11px] font-black ${active ? "text-white" : "text-[#0F172A]"}`}>{idx + 1}. {step.label}</span>
-                                <span className={`hidden truncate text-[10px] font-semibold lg:block ${active ? "text-white/80" : "text-[#64748B]"}`}>{step.description}</span>
-                            </span>
+                            <span className={`truncate text-[11px] font-black ${active ? "text-white" : "text-[#0F172A]"}`}>{step.label}</span>
                         </button>
                     );
                 })}
@@ -1074,10 +1102,10 @@ export default function OnboardingPage() {
 
     // ── Render ─────────────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-[#F8FBFF] pb-24">
+        <div className="pb-16">
             {/* Top bar */}
-            <div className="sticky top-0 z-20 border-b border-[#E2E8F0] bg-white/95 backdrop-blur">
-                <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
+            <div className="mx-auto max-w-7xl px-4 pt-2">
+                <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-3 shadow-sm">
                     <div className="min-w-0">
                         <p className="text-[11px] font-bold text-[#1E8AF7]">Store setup wizard</p>
                         <h1 className="truncate text-lg font-black text-[#0F172A]">{form.storeName || activeStore?.storeName || "Set up your Storvia store"}</h1>
@@ -1095,12 +1123,12 @@ export default function OnboardingPage() {
             </div>
 
             <div className="mx-auto max-w-7xl px-4 py-6">
-                <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
+                <div className="grid gap-6 lg:grid-cols-[230px_minmax(0,1fr)]">
                     <Stepper current={idx} completed={completed} goTo={setIdx} />
 
-                    <div className="space-y-5">
+                    <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
                         {/* Step header */}
-                        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5">
+                        <div className="border-b border-[#E2E8F0] bg-[#F8FBFF] p-5">
                             <div className="mb-1 flex items-center gap-2">
                                 {idx > 0 && (
                                     <button onClick={() => setIdx(idx - 1)} className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:border-[#1E8AF7] hover:text-[#1E8AF7]">
@@ -1114,7 +1142,7 @@ export default function OnboardingPage() {
                         </div>
 
                         {/* Step content */}
-                        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5">
+                        <div className="p-5 md:p-6">
                             {renderStep()}
                         </div>
                     </div>

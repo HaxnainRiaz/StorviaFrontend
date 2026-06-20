@@ -36,7 +36,7 @@ const Dropdown = ({
     return (
         <div className={cn("relative w-full", className)} ref={dropdownRef}>
             {label && (
-                <label className="block text-[10px] font-bold text-[#0a4019] uppercase tracking-[0.2em] mb-2 ml-1">
+                <label className="mb-2 block text-xs font-bold text-[#0F172A]">
                     {label}
                 </label>
             )}
@@ -45,17 +45,17 @@ const Dropdown = ({
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                    "w-full flex items-center justify-between px-6 py-4 bg-white border border-[#F5F3F0] rounded-2xl text-sm font-medium transition-all duration-300 shadow-sm hover:shadow-md",
-                    isOpen ? "ring-2 ring-[#d3d3d3]/30 border-[#d3d3d3]" : "hover:border-[#d3d3d3]/50",
-                    !selectedOption ? "text-[#B8A68A]" : "text-[#0a4019]"
+                    "flex h-11 w-full items-center justify-between rounded-xl border border-[#E2E8F0] bg-white px-3 text-sm font-medium shadow-sm transition outline-none",
+                    isOpen ? "border-[#1E8AF7] ring-4 ring-blue-50" : "hover:border-[#CBD5E1]",
+                    !selectedOption ? "text-[#94A3B8]" : "text-[#0F172A]"
                 )}
             >
                 <span className="truncate">{displayValue}</span>
-                <ChevronDown className={cn("h-4 w-4 text-[#B8A68A] transition-transform duration-300", isOpen && "rotate-180")} />
+                <ChevronDown className={cn("h-4 w-4 text-[#64748B] transition-transform duration-200", isOpen && "rotate-180")} />
             </button>
 
             {isOpen && (
-                <div className="absolute z-[100] w-full mt-2 bg-white border border-[#F5F3F0] rounded-2xl shadow-2xl py-2 animate-fadeIn overflow-hidden">
+                <div className="absolute z-[100] mt-2 w-full overflow-hidden rounded-xl border border-[#E2E8F0] bg-white py-1.5 shadow-xl animate-fadeIn">
                     <div className="max-h-60 overflow-y-auto custom-scrollbar">
                         {options.map((option) => {
                             const optValue = option.value || option;
@@ -68,12 +68,12 @@ const Dropdown = ({
                                     type="button"
                                     onClick={() => handleSelect(optValue)}
                                     className={cn(
-                                        "w-full flex items-center justify-between px-6 py-3 text-sm text-left transition-colors",
-                                        isSelected ? "bg-[#d3d3d3]/10 text-[#0a4019] font-bold" : "text-[#6B6B6B] hover:bg-[#FDFCFB] hover:text-[#0a4019]"
+                                        "flex w-full items-center justify-between px-3 py-2.5 text-left text-sm transition-colors",
+                                        isSelected ? "bg-[#EFF6FF] font-bold text-[#1E8AF7]" : "text-[#475569] hover:bg-[#F8FBFF] hover:text-[#0F172A]"
                                     )}
                                 >
                                     <span>{optLabel}</span>
-                                    {isSelected && <Check className="h-4 w-4 text-[#d3d3d3]" />}
+                                    {isSelected && <Check className="h-4 w-4 text-[#1E8AF7]" />}
                                 </button>
                             );
                         })}

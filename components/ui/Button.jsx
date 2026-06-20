@@ -11,13 +11,13 @@ const Button = ({
     disabled = false,
     icon: Icon
 }) => {
-    const baseStyles = "inline-flex items-center justify-center px-3 md:px-5 py-3 rounded-full font-medium transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-xs md:text-sm whitespace-nowrap uppercase tracking-wider";
+    const baseStyles = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap";
 
     const variants = {
-        primary: "bg-[#0a4019] text-white hover:bg-[#08241d] shadow-md hover:shadow-lg",
-        secondary: "bg-[#d3d3d3] text-[#0a4019] hover:bg-[#B8A68A] shadow-sm hover:shadow-md",
-        outline: "border-2 border-[#0a4019] text-[#0a4019] hover:bg-[#0a4019] hover:text-white",
-        ghost: "text-[#0a4019] hover:bg-[#F5F3F0]"
+        primary: "bg-[#1E8AF7] text-white shadow-sm shadow-blue-200 hover:bg-[#0F74D8]",
+        secondary: "border border-[#E2E8F0] bg-white text-[#0F172A] shadow-sm hover:border-[#93C5FD] hover:text-[#1E8AF7]",
+        outline: "border border-[#93C5FD] bg-white text-[#1E8AF7] hover:bg-[#EFF6FF]",
+        ghost: "text-[#475569] hover:bg-[#E8F3FF] hover:text-[#1E8AF7]"
     };
 
     return (
@@ -27,7 +27,7 @@ const Button = ({
             disabled={disabled}
             className={`${baseStyles} ${variants[variant]} ${className}`}
         >
-            {Icon && <Icon className="mr-2 w-4 h-4" />}
+            {Icon && <Icon className="h-4 w-4" />}
             {children}
         </button>
     );

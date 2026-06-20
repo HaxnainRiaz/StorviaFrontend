@@ -13,7 +13,7 @@ export default function SidebarWrapper({ children, isLoginPage }) {
         <div className="min-h-screen bg-[#F8FBFF] text-[#475569] font-body font-sans">
             {!isLoginPage && <Sidebar />}
             <main className={!isLoginPage ? "transition-all duration-300 lg:ml-72 min-h-screen p-4 sm:p-6 lg:p-8" : ""}>
-                <div className={!isLoginPage ? "max-w-7xl mx-auto animate-fadeIn" : ""}>
+                <div className={!isLoginPage ? "seller-app max-w-7xl mx-auto animate-fadeIn" : ""}>
                     {!isLoginPage && (
                         <header className="mb-6 flex flex-col gap-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-3 shadow-sm md:flex-row md:items-center md:justify-between">
                             <div className="relative flex-1">

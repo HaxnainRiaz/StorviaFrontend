@@ -14,6 +14,7 @@ import { formatDistanceToNow, format } from "date-fns";
 import useOrderStore from "@/store/useOrderStore";
 import toast from "react-hot-toast";
 import ShipWithPostExModal from "@/components/postex/ShipWithPostExModal";
+import { SellerPageScaffold, StatCard } from "@/components/storvia/SellerPageScaffold";
 
 const StatusBadge = ({ text, type }) => {
     let colorClass = "bg-gray-100 text-gray-700 border-gray-200";
@@ -285,22 +286,10 @@ function OrdersContent() {
     };
 
     return (
-        <div className="space-y-6 pb-20 animate-fadeIn">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    <h1 className="text-3xl font-heading font-bold text-[#0a4019] tracking-widest uppercase">Orders</h1>
-                    <span className="px-3 py-1 bg-[#F5F3F0] rounded-full text-xs font-bold text-[#0a4019] border border-[#d3d3d3]">{stats.total}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                    <Button variant="outline" className="text-xs tracking-widest font-bold">Export</Button>
-                    <Button variant="outline" className="text-xs tracking-widest font-bold hidden md:flex items-center gap-2">More Actions <ChevronDown size={14} /></Button>
-                    <Button className="bg-[#0a4019] hover:bg-[#051712] text-white text-xs tracking-widest font-bold">Create Order</Button>
-                </div>
-            </div>
+        <SellerPageScaffold title="Orders" description="Review, fulfill, ship, and manage customer orders." actions={<div className="flex gap-2"><Button variant="outline"><Download size={15} /> Export</Button><Button><Plus size={15} /> Create order</Button></div>}>
 
             {/* Stats Bar */}
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
                 {[
                     { label: "Orders", val: stats.total },
                     { label: "Items Ordered", val: stats.items },
@@ -309,32 +298,29 @@ function OrdersContent() {
                     { label: "Delivered", val: stats.delivered },
                     { label: "Pending Payment", val: stats.pendingPayment, highlight: true },
                 ].map(stat => (
-                    <div key={stat.label} className="bg-white p-4 rounded-xl border border-[#F5F3F0] shadow-sm flex flex-col justify-center">
-                        <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mb-1">{stat.label}</span>
-                        <span className={`text-xl font-bold ${stat.highlight && stat.val > 0 ? 'text-orange-500' : 'text-[#0a4019]'}`}>{stat.val}</span>
-                    </div>
+                    <StatCard key={stat.label} label={stat.label} value={stat.val} tone={stat.highlight && stat.val > 0 ? "amber" : "blue"} />
                 ))}
             </div>
 
             {/* Filters & Table Card */}
-            <div className="bg-white rounded-2xl border border-[#F5F3F0] shadow-sm overflow-hidden flex flex-col relative">
+            <div className="relative flex flex-col overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
                 {/* Tabs */}
-                <div className="flex overflow-x-auto border-b border-[#F5F3F0] px-2 custom-scrollbar">
+                <div className="flex gap-1 overflow-x-auto border-b border-[#E2E8F0] bg-[#F8FBFF] p-2 custom-scrollbar">
                     {tabs.map(tab => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
-                            className={`px-4 py-4 text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-colors border-b-2 ${activeTab === tab ? 'border-[#0a4019] text-[#0a4019]' : 'border-transparent text-neutral-400 hover:text-[#0a4019]'
+                            className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold transition ${activeTab === tab ? 'bg-white text-[#1E8AF7] shadow-sm ring-1 ring-[#E2E8F0]' : 'text-[#64748B] hover:bg-white hover:text-[#0F172A]'
                                 }`}
                         >
                             {tab}
                         </button>
                     ))}
-                    <button className="px-4 py-4 text-neutral-400 hover:text-[#0a4019] border-b-2 border-transparent"><Plus size={16} /></button>
+                    <button className="rounded-lg px-3 py-2 text-[#64748B] hover:bg-white hover:text-[#1E8AF7]"><Plus size={16} /></button>
                 </div>
 
                 {/* Toolbar */}
-                <div className="p-4 flex items-center justify-between gap-4 bg-[#FDFCFB] border-b border-[#F5F3F0]">
+                <div className="flex flex-col gap-3 border-b border-[#E2E8F0] bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
                         <input
@@ -342,10 +328,10 @@ function OrdersContent() {
                             placeholder="Search orders..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-white border border-[#F5F3F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0a4019]/20"
+                            className="h-10 w-full rounded-xl border border-[#E2E8F0] bg-white pl-10 pr-4 text-sm outline-none focus:border-[#1E8AF7] focus:ring-4 focus:ring-blue-50"
                         />
                     </div>
-                    <Button variant="outline" className="text-xs tracking-widest font-bold flex items-center gap-2">
+                    <Button variant="outline">
                         <Filter size={14} /> Filters
                     </Button>
                 </div>
@@ -370,7 +356,7 @@ function OrdersContent() {
             {/* Bulk Action Toolbar */}
             {selectedOrderIds.length > 0 && (
                 <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-slideUp">
-                    <div className="bg-[#051712] text-white rounded-2xl shadow-2xl border border-white/10 px-6 py-4 flex items-center gap-6">
+                    <div className="flex items-center gap-5 rounded-2xl border border-[#1E293B] bg-[#0F172A] px-5 py-3 text-white shadow-2xl">
                         <span className="text-sm font-bold bg-white/10 px-3 py-1 rounded-full">{selectedOrderIds.length} selected</span>
                         <div className="h-6 w-px bg-white/20"></div>
                         <div className="flex items-center gap-2">
@@ -411,7 +397,7 @@ function OrdersContent() {
                     onSuccess={() => refreshData()} 
                 />
             )}
-        </div>
+        </SellerPageScaffold>
     );
 }
 

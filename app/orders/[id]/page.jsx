@@ -277,23 +277,23 @@ export default function OrderDetailPage() {
     const isNew = new Date(order.createdAt) > new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     return (
-        <div className="min-h-screen bg-[#f7fbf7] flex flex-col font-sans relative">
+        <div className="order-detail relative flex flex-col gap-6 pb-12">
 
             {/* 1. STICKY HEADER */}
-            <div className="sticky top-0 z-30 bg-white border-b border-[#e8f0e8] px-8 py-4 flex items-center justify-between shadow-sm">
+            <div className="flex flex-col gap-4 border-b border-[#E2E8F0] pb-5 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-6">
                     <button
-                        onClick={() => router.push('/orders')}
-                        className="p-2 hover:bg-[#f7fbf7] rounded-full text-[#1a4a1a] transition-all"
+                        onClick={() => router.push('/app/orders')}
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E2E8F0] bg-white text-[#64748B] hover:border-[#93C5FD] hover:text-[#1E8AF7]"
                     >
                         <ChevronLeft size={24} />
                     </button>
                     <div className="flex items-center gap-4">
-                        <h1 className="text-2xl font-bold text-[#1a1a1a] tracking-tight">
+                        <h1 className="text-2xl font-black tracking-tight text-[#0F172A]">
                             Order #{order.orderNumber || order._id.substring(18).toUpperCase()}
                         </h1>
                         {isNew && (
-                            <span className="bg-[#1a4a1a] text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-widest uppercase">NEW</span>
+                            <span className="rounded-full bg-[#E8F3FF] px-2.5 py-1 text-[10px] font-black uppercase text-[#1E8AF7]">New</span>
                         )}
                     </div>
                 </div>
@@ -333,7 +333,7 @@ export default function OrderDetailPage() {
             </div>
 
             {/* 2. STATUS BAR */}
-            <div className="px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div className="bg-white p-5 rounded-[12px] border border-[#e8f0e8] shadow-sm">
                     <p className="text-[10px] font-bold text-[#6b7c6b] uppercase tracking-widest mb-3">Payment Status</p>
                     <div className="flex items-center justify-between">
@@ -361,10 +361,10 @@ export default function OrderDetailPage() {
             </div>
 
             {/* 3. TWO-COLUMN BODY */}
-            <div className="px-8 pb-32 flex flex-col lg:flex-row gap-[2%] items-start">
+            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
 
                 {/* LEFT COLUMN (58%) */}
-                <div className="w-full lg:w-[58%] space-y-6">
+                <div className="w-full space-y-6">
 
                     {/* Items Manifest */}
                     <div className="bg-white rounded-[12px] border border-[#e8f0e8] shadow-sm overflow-hidden">
@@ -573,7 +573,7 @@ export default function OrderDetailPage() {
                 </div>
 
                 {/* RIGHT COLUMN (40%) */}
-                <div className="w-full lg:w-[40%] space-y-6">
+                <div className="w-full space-y-6 lg:sticky lg:top-6">
 
                     {/* PostEx Booking Panel */}
                     <div className={`rounded-[12px] border shadow-md overflow-hidden transition-all ${order.isPostExBooked ? 'bg-[#f7fbf7] border-[#d4edda]' : 'bg-white border-[#1a4a1a]/20'}`}>

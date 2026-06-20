@@ -67,17 +67,17 @@ export default function AdminTable({
 
   if (safeColumns.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-[#F5F3F0] shadow-sm p-8 text-center text-sm text-neutral-400 font-medium">
+      <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-white p-12 text-center text-sm font-semibold text-[#64748B]">
         No table columns configured.
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl border border-[#F5F3F0] shadow-sm overflow-hidden flex flex-col min-h-[200px]">
+    <div className="flex min-h-[240px] flex-col overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
       <div className="overflow-x-auto custom-scrollbar">
         <table className="w-full text-sm text-left">
-          <thead className="bg-[#FDFCFB] border-b border-[#F5F3F0]">
+          <thead className="border-b border-[#E2E8F0] bg-[#F8FBFF]">
             {(headerGroups || []).map((headerGroup) => (
               <tr key={headerGroup?.id || Math.random()}>
                 {(headerGroup?.headers || []).map((header) => {
@@ -103,10 +103,10 @@ export default function AdminTable({
                   return (
                     <th
                       key={header.id || Math.random()}
-                      className="px-4 py-3 font-bold text-[10px] uppercase tracking-widest text-neutral-500 whitespace-nowrap select-none group"
+                      className="select-none whitespace-nowrap px-5 py-3.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#64748B] group"
                     >
                       <div
-                        className={`flex items-center gap-1 ${isSortable ? "cursor-pointer hover:text-[#0a4019]" : ""}`}
+                        className={`flex items-center gap-1 ${isSortable ? "cursor-pointer hover:text-[#1E8AF7]" : ""}`}
                         onClick={sortingHandler}
                       >
                         {header.isPlaceholder
@@ -118,8 +118,8 @@ export default function AdminTable({
 
                         {isSortable && (
                           <div className="w-4">
-                            {sortedState === "asc" && <ChevronUp size={14} className="text-[#0a4019]" />}
-                            {sortedState === "desc" && <ChevronDown size={14} className="text-[#0a4019]" />}
+                            {sortedState === "asc" && <ChevronUp size={14} className="text-[#1E8AF7]" />}
+                            {sortedState === "desc" && <ChevronDown size={14} className="text-[#1E8AF7]" />}
                             {!sortedState && <ChevronUp size={14} className="text-transparent group-hover:text-neutral-300" />}
                           </div>
                         )}
@@ -131,7 +131,7 @@ export default function AdminTable({
             ))}
           </thead>
 
-          <tbody className="divide-y divide-[#F5F3F0]">
+          <tbody className="divide-y divide-[#E2E8F0]">
             {rows.length > 0 ? (
               rows.map((row) => (
                 <tr
@@ -141,13 +141,13 @@ export default function AdminTable({
                       onRowClick(row.original);
                     }
                   }}
-                  className={`hover:bg-[#FDFCFB]/80 transition-colors group ${typeof onRowClick === "function" ? "cursor-pointer" : ""
-                    } ${row.getIsSelected?.() ? "bg-[#0a4019]/5" : ""}`}
+                  className={`transition-colors hover:bg-[#F8FBFF] group ${typeof onRowClick === "function" ? "cursor-pointer" : ""
+                    } ${row.getIsSelected?.() ? "bg-[#EFF6FF]" : ""}`}
                 >
                   {(row.getVisibleCells?.() || []).filter(Boolean).map((cell) => (
                     <td
                       key={cell.id}
-                      className="px-4 py-3 whitespace-nowrap"
+                      className="whitespace-nowrap px-5 py-3.5"
                       onClick={(event) => {
                         if (
                           cell.column?.id === "select" ||
@@ -169,7 +169,7 @@ export default function AdminTable({
               <tr>
                 <td
                   colSpan={safeColumns.length || 1}
-                  className="px-6 py-16 text-center text-neutral-400 font-medium"
+                  className="px-6 py-20 text-center font-semibold text-[#64748B]"
                 >
                   {emptyMessage}
                 </td>
@@ -179,7 +179,7 @@ export default function AdminTable({
         </table>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-6 py-4 border-t border-[#F5F3F0] bg-[#FDFCFB] text-xs text-neutral-500 font-bold tracking-wide">
+      <div className="flex flex-col items-start justify-between gap-4 border-t border-[#E2E8F0] bg-[#F8FBFF] px-5 py-3 text-xs font-bold text-[#64748B] sm:flex-row sm:items-center">
         <div>
           Showing {startRow} to {endRow} of {safeData.length} rows
         </div>
@@ -188,7 +188,7 @@ export default function AdminTable({
           <select
             value={pagination.pageSize}
             onChange={(event) => table.setPageSize(Number(event.target.value))}
-            className="bg-transparent border-none font-bold text-[#0a4019] focus:outline-none cursor-pointer"
+            className="cursor-pointer rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5 font-bold text-[#0F172A] outline-none"
           >
             {[10, 25, 50, 100, 250].map((pageSize) => (
               <option key={pageSize} value={pageSize}>
@@ -202,7 +202,7 @@ export default function AdminTable({
               type="button"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
-              className="p-1.5 rounded-lg border border-[#F5F3F0] bg-white hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              className="rounded-lg border border-[#E2E8F0] bg-white p-2 shadow-sm hover:border-[#93C5FD] hover:text-[#1E8AF7] disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ChevronLeft size={16} />
             </button>
@@ -211,7 +211,7 @@ export default function AdminTable({
               type="button"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
-              className="p-1.5 rounded-lg border border-[#F5F3F0] bg-white hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              className="rounded-lg border border-[#E2E8F0] bg-white p-2 shadow-sm hover:border-[#93C5FD] hover:text-[#1E8AF7] disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ChevronRight size={16} />
             </button>

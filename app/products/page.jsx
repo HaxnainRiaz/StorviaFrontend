@@ -14,6 +14,7 @@ import {
 import "react-quill-new/dist/quill.snow.css";
 import { uploadImage, validateImageFile, resolveImageUrl } from "@/utils/upload";
 import { loadQuillContent } from "@/utils/quill";
+import { ModalShell, PageToolbar, SellerPageScaffold, SecondaryButton } from "@/components/storvia/SellerPageScaffold";
 
 const ReactQuill = dynamic(() => import("react-quill-new"), {
     ssr: false,
@@ -314,59 +315,23 @@ export default function ProductsPage() {
 
     if (!isEditing) {
         return (
-            <div className="space-y-6">
+            <SellerPageScaffold title="Products" description="Manage product details, pricing, visibility, and stock." actions={<Button onClick={handleAddNew} icon={Plus}>Add product</Button>}>
                 <ProductsCatalogNav />
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold text-[#0F172A]">Products</h1>
-                        <p className="text-[#64748B] text-sm">Manage your store catalog</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <SearchBar
-                            placeholder="Search products..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-64"
-                        />
-                        <Button onClick={handleAddNew} icon={Plus}>Add Product</Button>
-                    </div>
-                </div>
+                <PageToolbar><SearchBar placeholder="Search products or categories..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:max-w-md" /><p className="text-xs font-bold text-[#64748B]">{filteredProducts.length} products</p></PageToolbar>
                 <ProductTable
                     products={filteredProducts}
                     onEdit={handleEdit}
                     onDelete={confirmDelete}
                     onBulkDelete={confirmBulkDelete}
                 />
-                {isDeleteModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                        <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl border border-[#E2E8F0]">
-                            <h3 className="text-lg font-bold text-[#0F172A] mb-2">
-                                Delete {bulkDeleteIds.length > 0 ? `${bulkDeleteIds.length} products` : "product"}
-                            </h3>
-                            <p className="text-sm text-[#64748B] mb-6">
-                                This action cannot be undone.
-                            </p>
-                            <div className="flex justify-end gap-3">
-                                <button
-                                    onClick={() => { setIsDeleteModalOpen(false); setProductToDelete(null); setBulkDeleteIds([]); }}
-                                    className="px-4 py-2 rounded-xl border border-[#E2E8F0] text-sm font-bold"
-                                >
-                                    Cancel
-                                </button>
-                                <button onClick={executeDelete} className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-bold">
-                                    Delete
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
+                <ModalShell open={isDeleteModalOpen} onClose={() => { setIsDeleteModalOpen(false); setProductToDelete(null); setBulkDeleteIds([]); }} title={`Delete ${bulkDeleteIds.length > 0 ? `${bulkDeleteIds.length} products` : "product"}`} description="This permanently removes the selected catalog data." size="sm" footer={<><SecondaryButton onClick={() => { setIsDeleteModalOpen(false); setProductToDelete(null); setBulkDeleteIds([]); }}>Cancel</SecondaryButton><button onClick={executeDelete} className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-700">Delete</button></>}><p className="text-sm text-[#475569]">This action cannot be undone. Existing order history will remain available.</p></ModalShell>
+            </SellerPageScaffold>
         );
     }
 
     return (
-        <div className="max-w-5xl mx-auto space-y-6">
-            <div className="flex items-center gap-4">
+        <div className="mx-auto max-w-6xl space-y-6 pb-12">
+            <div className="flex items-center gap-4 border-b border-[#E2E8F0] pb-5">
                 <button onClick={() => setIsEditing(false)} className="p-2 hover:bg-neutral-100 rounded-full">
                     <ArrowLeft size={20} className="text-[#0F172A]" />
                 </button>
@@ -384,7 +349,7 @@ export default function ProductsPage() {
                 </div>
             )}
 
-            <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <form onSubmit={handleSave} className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
                 <div className="lg:col-span-2 space-y-6">
                     <section className="rounded-2xl border border-[#E2E8F0] bg-white p-6 space-y-4">
                         <h2 className="text-sm font-black uppercase tracking-wider text-[#64748B]">Basic information</h2>
@@ -487,7 +452,7 @@ export default function ProductsPage() {
                     </section>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
                     <section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 space-y-4">
                         <div className="flex items-center gap-2">
                             <ImageIcon size={16} className="text-[#1E8AF7]" />

@@ -83,20 +83,20 @@ export default function ShipWithPostExModal({ order, onClose, onSuccess }) {
     const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl my-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-[#0F172A]/45 p-4 backdrop-blur-sm">
+            <div className="my-4 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-[#F5F3F0]">
+                <div className="flex items-center justify-between border-b border-[#E2E8F0] p-5">
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-[#0a4019] flex items-center justify-center">
-                            <Truck size={18} className="text-white" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#E8F3FF]">
+                            <Truck size={18} className="text-[#1E8AF7]" />
                         </div>
                         <div>
-                            <h2 className="font-bold text-[#0a4019] uppercase tracking-widest text-sm">Ship with PostEx</h2>
-                            <p className="text-xs text-neutral-400">{order?.orderNumber}</p>
+                            <h2 className="text-lg font-black text-[#0F172A]">Book PostEx shipment</h2>
+                            <p className="text-xs font-medium text-[#64748B]">Order {order?.orderNumber}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-neutral-100 flex items-center justify-center">
+                    <button onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FBFF]">
                         <X size={16} />
                     </button>
                 </div>
@@ -110,7 +110,7 @@ export default function ShipWithPostExModal({ order, onClose, onSuccess }) {
                         <p className="text-xs text-neutral-500">Please connect your PostEx account in <strong>PostEx → Settings</strong> first.</p>
                     </div>
                 ) : (
-                    <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                    <form onSubmit={handleSubmit} className="space-y-5 overflow-y-auto p-5">
                         {order?.isPostExBooked && (
                             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2 items-start">
                                 <AlertCircle size={14} className="text-amber-600 mt-0.5 flex-shrink-0" />
@@ -183,13 +183,13 @@ export default function ShipWithPostExModal({ order, onClose, onSuccess }) {
                             <input value={form.transactionNotes} onChange={e => set('transactionNotes', e.target.value)} className={inputCls} />
                         </Field>
 
-                        <div className="pt-2 flex gap-3">
+                        <div className="sticky bottom-0 -mx-5 -mb-5 flex flex-row-reverse gap-3 border-t border-[#E2E8F0] bg-[#F8FBFF] px-5 py-4">
                             <button type="submit" disabled={submitting || (order?.isPostExBooked && !forceRebook)}
-                                className="flex-1 flex items-center justify-center gap-2 bg-[#0a4019] text-white rounded-xl py-3 text-sm font-bold hover:bg-[#0a4019]/90 disabled:opacity-50 transition-all">
+                                className="flex items-center justify-center gap-2 rounded-xl bg-[#1E8AF7] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#0F74D8] disabled:opacity-50">
                                 {submitting ? <Loader2 size={16} className="animate-spin" /> : <Truck size={16} />}
                                 {submitting ? 'Booking…' : 'Book Shipment'}
                             </button>
-                            <button type="button" onClick={onClose} className="border border-neutral-200 rounded-xl px-5 py-3 text-sm font-bold text-neutral-600 hover:bg-neutral-50">
+                            <button type="button" onClick={onClose} className="rounded-xl border border-[#E2E8F0] bg-white px-5 py-2.5 text-sm font-bold text-[#475569] hover:border-[#93C5FD]">
                                 Cancel
                             </button>
                         </div>
@@ -200,12 +200,12 @@ export default function ShipWithPostExModal({ order, onClose, onSuccess }) {
     );
 }
 
-const inputCls = "w-full border border-neutral-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0a4019]/20 focus:border-[#0a4019]";
+const inputCls = "h-11 w-full rounded-xl border border-[#E2E8F0] bg-white px-3 text-sm text-[#0F172A] outline-none focus:border-[#1E8AF7] focus:ring-4 focus:ring-blue-50";
 
 function Field({ label, required, children }) {
     return (
         <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-neutral-500 block mb-1.5">
+            <label className="mb-2 block text-xs font-bold text-[#0F172A]">
                 {label}{required && <span className="text-red-400 ml-0.5">*</span>}
             </label>
             {children}

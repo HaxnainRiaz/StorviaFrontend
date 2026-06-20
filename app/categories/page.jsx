@@ -4,7 +4,8 @@ import { useAdmin } from "@/context/AdminContext";
 import { useState, useEffect } from "react";
 import { SearchBar, Button, Input } from "@/components/ui";
 import ProductsCatalogNav from "@/components/admin/ProductsCatalogNav";
-import { Plus, Edit2, Trash2, Tag, Layers, X } from "lucide-react";
+import { Plus, Edit2, Trash2, Tag, Layers } from "lucide-react";
+import { Card, EmptyState, ModalShell, PageToolbar, SellerPageScaffold, SecondaryButton } from "@/components/storvia/SellerPageScaffold";
 
 export default function CategoriesPage() {
     const { categories, addCategory, updateCategory, deleteCategory, loading, fetchCategories } = useAdmin();
@@ -71,148 +72,84 @@ export default function CategoriesPage() {
     }
 
     return (
-        <div className="space-y-6 animate-fadeIn">
+        <SellerPageScaffold
+            title="Categories"
+            description="Organize your catalog into clear storefront collections."
+            actions={<Button onClick={openCreateModal} icon={Plus}>Add category</Button>}
+        >
             <ProductsCatalogNav />
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                    <h1 className="text-3xl font-bold text-[#0F172A]">Categories</h1>
-                    <p className="text-[#64748B] text-sm mt-1">Organize products into categories for your storefront</p>
-                </div>
+            <PageToolbar><SearchBar placeholder="Search categories..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:max-w-sm" /><p className="text-xs font-bold text-[#64748B]">{filteredCategories.length} categories</p></PageToolbar>
 
-                <div className="flex items-center gap-4">
-                    <SearchBar
-                        placeholder="Find collection..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-48 md:w-64"
-                    />
-                    <Button
-                        onClick={openCreateModal}
-                        icon={Plus}
-                    >
-                        New Tier
-                    </Button>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {filteredCategories.length > 0 ? (
                     filteredCategories.map((category) => (
-                        <div key={category._id} className="bg-white p-8 rounded-[2rem] border border-[#F5F3F0] shadow-[0_4px_20px_rgba(11,47,38,0.08)] hover:shadow-[0_16px_60px_rgba(11,47,38,0.15)] transition-all duration-500 group relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-[#FDFCFB]/50 rounded-full -mr-12 -mt-12 group-hover:bg-[#d3d3d3]/10 transition-colors" />
-
-                            <div className="flex items-start justify-between mb-6 relative">
-                                <div className="w-14 h-14 rounded-2xl bg-[#d3d3d3]/20 flex items-center justify-center text-[#0a4019] shadow-inner">
-                                    <Layers size={24} />
+                        <Card key={category._id} className="group p-5 transition hover:border-[#93C5FD] hover:shadow-md">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#E8F3FF] text-[#1E8AF7]">
+                                    <Layers size={20} />
                                 </div>
-                                <div className="flex gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                    <button
-                                        onClick={() => openEditModal(category)}
-                                        className="p-2 text-neutral-300 hover:text-[#0a4019] transition-colors"
-                                        title="Edit Collection"
-                                    >
+                                <div className="flex gap-1">
+                                    <button onClick={() => openEditModal(category)} className="rounded-lg p-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#1E8AF7]" title="Edit category">
                                         <Edit2 size={16} />
                                     </button>
-                                    <button
-                                        onClick={() => handleDelete(category._id)}
-                                        className="p-2 text-neutral-300 hover:text-red-500 transition-colors"
-                                        title="Delete Collection"
-                                    >
+                                    <button onClick={() => handleDelete(category._id)} className="rounded-lg p-2 text-[#64748B] hover:bg-red-50 hover:text-red-600" title="Delete category">
                                         <Trash2 size={16} />
                                     </button>
                                 </div>
                             </div>
-
-                            <h3 className="text-xl font-heading font-bold text-[#0a4019] mb-2 italic">{category.title}</h3>
-                            <p className="text-xs text-[#6B6B6B] leading-relaxed line-clamp-2 mb-6 font-medium">
-                                {category.description || "No description assigned to this collection tier."}
+                            <h3 className="mt-4 text-base font-black text-[#0F172A]">{category.title}</h3>
+                            <p className="mt-1 min-h-10 line-clamp-2 text-sm leading-5 text-[#64748B]">
+                                {category.description || "No description has been added yet."}
                             </p>
-
-                            <div className="flex items-center justify-between pt-6 border-t border-[#F5F3F0]/50">
+                            <div className="mt-5 flex items-center justify-between border-t border-[#E2E8F0] pt-4">
                                 <div className="flex items-center gap-2">
-                                    <Tag size={12} className="text-[#d3d3d3]" />
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.15em]">slug: {category.slug}</span>
+                                    <Tag size={13} className="text-[#94A3B8]" />
+                                    <span className="truncate text-xs font-semibold text-[#64748B]">/{category.slug}</span>
                                 </div>
-                                <span className="text-[10px] font-bold text-[#0a4019] bg-[#d3d3d3]/20 px-3 py-1 rounded-full border border-[#d3d3d3]/10">
-                                    ACTIVE
-                                </span>
+                                <span className="rounded-full bg-[#DCFCE7] px-2.5 py-1 text-[10px] font-black uppercase text-[#166534]">Active</span>
                             </div>
-                        </div>
+                        </Card>
                     ))
                 ) : (
-                    <div className="col-span-full py-32 text-center bg-[#F5F3F0]/5 rounded-[3rem] border-2 border-dashed border-[#F5F3F0]">
-                        <Layers className="mx-auto text-neutral-200 mb-4" size={48} />
-                        <h3 className="text-xl font-heading font-bold text-[#0a4019]">No Collections Found</h3>
-                        <p className="text-[#6B6B6B] text-xs mt-2 font-medium">Begin by creating your first product category.</p>
-                    </div>
+                    <div className="col-span-full"><EmptyState icon={Layers} title="No categories found" description="Create a category to make your catalog easier to browse." action={<Button onClick={openCreateModal} icon={Plus}>Add category</Button>} /></div>
                 )}
             </div>
 
-            {/* Shared Modal for Create/Edit */}
-            {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a4019]/30 backdrop-blur-xl animate-fadeIn">
-                    <div className="bg-white p-12 rounded-[3.5rem] shadow-[0_16px_60px_rgba(11,47,38,0.15)] max-w-lg w-full mx-4 animate-scaleIn border border-white">
-                        <div className="flex items-center justify-between mb-10">
-                            <div>
-                                <h3 className="text-3xl font-heading font-bold text-[#0a4019] italic">
-                                    {modalMode === 'create' ? 'New Collection' : 'Edit Collection'}
-                                </h3>
-                                <p className="text-xs text-neutral-400 font-bold uppercase tracking-widest mt-1">Expanding the Taxonomy</p>
-                            </div>
-                            <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-300">
-                                <X size={24} />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div>
+            <ModalShell open={isModalOpen} onClose={() => setIsModalOpen(false)} title={modalMode === 'create' ? 'Add category' : 'Edit category'} description="Categories help customers browse related products.">
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <div className="grid gap-4 sm:grid-cols-2">
                                 <Input
-                                    label="Collection Title *"
+                                    label="Category name"
                                     required
                                     value={formData.title}
                                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                    placeholder="e.g. Rare Elixirs"
+                                    placeholder="e.g. Skincare"
                                 />
 
                                 <Input
-                                    label="Slug (URL Route)"
+                                    label="URL slug"
                                     value={formData.slug}
                                     onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                                    placeholder="rare-elixirs"
+                                    placeholder="skincare"
                                 />
                             </div>
-
                             <div>
-                                <label className="block text-[10px] font-bold text-[#0a4019] uppercase tracking-[0.2em] mb-2 ml-1">Curator Notes</label>
+                                <label className="mb-2 block text-xs font-bold text-[#0F172A]">Description</label>
                                 <textarea
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    className="w-full px-6 py-4 bg-white border border-[#F5F3F0] rounded-2xl shadow-sm hover:shadow-md font-medium text-[#0a4019] text-sm min-h-[100px]"
-                                    placeholder="Describe the essence of this collection..."
+                                    className="min-h-28 w-full resize-none rounded-xl border border-[#E2E8F0] bg-white p-3 text-sm text-[#0F172A] outline-none focus:border-[#1E8AF7]"
+                                    placeholder="What products belong in this category?"
                                 />
                             </div>
-
-                            <div className="pt-6 flex gap-4">
-                                <Button
-                                    type="button"
-                                    onClick={() => setIsModalOpen(false)}
-                                    variant="ghost"
-                                    className="flex-1"
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    variant="primary"
-                                    className="flex-1"
-                                >
+                            <div className="flex justify-end gap-2 border-t border-[#E2E8F0] pt-4">
+                                <SecondaryButton type="button" onClick={() => setIsModalOpen(false)}>Cancel</SecondaryButton>
+                                <Button type="submit">
                                     {modalMode === 'create' ? 'Save Collection' : 'Update Collection'}
                                 </Button>
                             </div>
                         </form>
-                    </div>
-                </div>
-            )}
-        </div>
+            </ModalShell>
+        </SellerPageScaffold>
     );
 }

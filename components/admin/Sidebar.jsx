@@ -140,7 +140,9 @@ function SidebarGroup({ group, pathname, collapsed, defaultOpen = false, closeMo
 }
 
 function StoreStatusCard({ activeStore, collapsed }) {
+    const [open, setOpen] = useState(false);
     const progress = activeStore?.setupStatus === "completed" ? 100 : activeStore?.setupCompletedSteps?.length ? Math.min(95, activeStore.setupCompletedSteps.length * 12) : 15;
+    
     if (collapsed) {
         return (
             <Link href="/app/storefront" title={activeStore?.storeName || "Current store"} className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#E2E8F0] bg-white text-[#1E8AF7]">
@@ -148,24 +150,35 @@ function StoreStatusCard({ activeStore, collapsed }) {
             </Link>
         );
     }
+    
     return (
-        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-3">
-            <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E8F3FF] text-sm font-black text-[#1E8AF7]">
+        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-2">
+            <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center gap-3 text-left">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#E8F3FF] text-xs font-black text-[#1E8AF7]">
                     {(activeStore?.storeName || "S").slice(0, 1).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-black text-[#0F172A]">{activeStore?.storeName || "Your store"}</p>
-                    <span className="mt-1 inline-flex rounded-full bg-[#F1F5F9] px-2 py-0.5 text-[10px] font-black text-[#64748B]">{activeStore?.status || "draft"}</span>
+                    <p className="truncate text-xs font-black text-[#0F172A]">{activeStore?.storeName || "Your store"}</p>
+                    <span className="inline-flex rounded-full bg-[#F1F5F9] px-2 py-0.5 text-[9px] font-black text-[#64748B]">{activeStore?.status || "draft"}</span>
                 </div>
-            </div>
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#E2E8F0]">
-                <div className="h-full rounded-full bg-[#1E8AF7]" style={{ width: `${progress}%` }} />
-            </div>
-            <div className="mt-3 flex gap-2">
-                <Link href="/app/onboarding" className="flex-1 rounded-lg bg-[#E8F3FF] px-2 py-2 text-center text-[11px] font-black text-[#1E8AF7]">Setup</Link>
-                <Link href={buildStoreUrl(activeStore)} className="flex-1 rounded-lg border border-[#E2E8F0] px-2 py-2 text-center text-[11px] font-black text-[#0F172A]">View</Link>
-            </div>
+                <ChevronDown className={`h-4 w-4 text-[#64748B] transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+            </button>
+            
+            {open && (
+                <div className="mt-3 border-t border-[#F1F5F9] pt-3">
+                    <div className="flex justify-between items-center text-[10px] text-[#64748B] font-bold">
+                        <span>Setup progress</span>
+                        <span>{progress}%</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#E2E8F0]">
+                        <div className="h-full rounded-full bg-[#1E8AF7]" style={{ width: `${progress}%` }} />
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                        <Link href="/app/onboarding" className="flex-1 rounded-lg bg-[#E8F3FF] px-2 py-2 text-center text-[11px] font-black text-[#1E8AF7]">Setup</Link>
+                        <Link href={buildStoreUrl(activeStore)} className="flex-1 rounded-lg border border-[#E2E8F0] px-2 py-2 text-center text-[11px] font-black text-[#0F172A]">View</Link>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -214,22 +227,24 @@ export default function Sidebar() {
                 ))}
             </nav>
 
-            <div className={`mt-4 rounded-2xl border border-[#E2E8F0] bg-white p-3 ${collapsed ? "px-2" : ""}`}>
-                <div className={`mb-3 flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#E8F3FF] text-[#1E8AF7]">
-                        {(user?.name || user?.email || "S").slice(0, 1).toUpperCase()}
-                    </div>
+            <div className={`mt-auto pt-4 border-t border-[#E2E8F0] ${collapsed ? "px-0" : "px-1"}`}>
+                <div className="flex items-center justify-between gap-3">
                     {!collapsed && (
-                        <div className="min-w-0">
-                            <p className="truncate text-sm font-bold text-[#0F172A]">{user?.name || "Store owner"}</p>
-                            <p className="truncate text-[11px] text-[#64748B]">{user?.email || "seller account"}</p>
+                        <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#E8F3FF] text-xs font-black text-[#1E8AF7]">
+                                {(user?.name || user?.email || "S").slice(0, 1).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="truncate text-xs font-bold text-[#0F172A]">{user?.name || "Store owner"}</p>
+                                <p className="truncate text-[10px] text-[#64748B]">{user?.email || "seller account"}</p>
+                            </div>
                         </div>
                     )}
+                    <button onClick={logout} title="Logout" className={`flex h-9 items-center justify-center gap-1 rounded-xl transition ${collapsed ? "w-11 bg-[#FEF2F2] border border-[#FEE2E2] text-[#DC2626]" : "px-3 bg-transparent hover:bg-[#FEF2F2] text-[#DC2626] text-xs font-black"}`}>
+                        <LogOut size={16} />
+                        {!collapsed && <span>Logout</span>}
+                    </button>
                 </div>
-                <button onClick={logout} title="Logout" className={`flex w-full items-center justify-center gap-2 rounded-xl border border-[#FEE2E2] bg-[#FEF2F2] px-3 py-2 text-xs font-bold text-[#DC2626] transition hover:bg-[#FEE2E2] ${collapsed ? "px-2" : ""}`}>
-                    <LogOut size={15} />
-                    {!collapsed && "Logout"}
-                </button>
             </div>
         </aside>
     );

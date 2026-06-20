@@ -9,6 +9,7 @@ import ProductsCatalogNav from "@/components/admin/ProductsCatalogNav";
 import Link from "next/link";
 import AdminTable from "@/components/admin/AdminTable";
 import { resolveImageUrl } from "@/utils/upload";
+import { ModalShell, SellerPageScaffold, SecondaryButton } from "@/components/storvia/SellerPageScaffold";
 
 export default function InventoryPage() {
     const { products, updateProduct, deleteProduct, loading, fetchProducts } = useAdmin();
@@ -87,78 +88,49 @@ export default function InventoryPage() {
     }
 
     return (
-        <div className="space-y-6 animate-fadeIn">
+        <SellerPageScaffold title="Inventory" description="Monitor stock health and update available quantities." actions={<div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={handleBatchUpdate} disabled={isUpdating} icon={Save}>Save changes</Button><Link href="/app/products"><Button icon={Plus}>Add product</Button></Link></div>}>
             <ProductsCatalogNav />
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                    <h1 className="text-3xl font-bold text-[#0F172A]">Inventory</h1>
-                    <p className="text-[#64748B] text-sm mt-1">Track stock levels and update available quantities</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 items-center gap-2 md:gap-4">
-                    <Button
-                        variant="secondary"
-                        onClick={handleBatchUpdate}
-                        disabled={isUpdating}
-                        icon={Save}
-                        className="px-8 w-full"
-                    >
-                        Save all changes
-                    </Button>
-                    <Link href="/app/products">
-                        <Button
-                            variant="primary"
-                            icon={Plus}
-                            className="px-8 w-full">
-                            Add product
-                        </Button>
-                    </Link>
-                </div>
-            </div>
 
             {/* Inventory Alerts Bar */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="bg-white p-8 rounded-[2rem] border border-[#F5F3F0] shadow-[0_4px_20px_rgba(11,47,38,0.08)] flex items-center gap-6 relative overflow-hidden group text-[#0a4019]">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-full -mr-12 -mt-12 group-hover:bg-red-100 transition-colors" />
-                    <div className="p-4 bg-red-50 text-red-600 rounded-2xl shadow-inner relative"><AlertTriangle size={28} /></div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="relative flex items-center gap-4 overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-red-600"><AlertTriangle size={22} /></div>
                     <div className="relative">
-                        <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.2em] mb-1">Critical Void</p>
-                        <p className="text-3xl font-heading font-bold text-[#0a4019] italic">{products.filter(p => p.stock === 0).length} Lines</p>
+                        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Out of stock</p>
+                        <p className="text-2xl font-black text-[#0F172A]">{products.filter(p => p.stock === 0).length} products</p>
                     </div>
                 </div>
-                <div className="bg-white p-8 rounded-[2rem] border border-[#F5F3F0] shadow-[0_4px_20px_rgba(11,47,38,0.08)] flex items-center gap-6 relative overflow-hidden group text-[#0a4019]">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-orange-50 rounded-full -mr-12 -mt-12 group-hover:bg-orange-100 transition-colors" />
-                    <div className="p-4 bg-orange-50 text-orange-600 rounded-2xl shadow-inner relative"><ArrowLeftRight size={28} /></div>
+                <div className="relative flex items-center gap-4 overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><ArrowLeftRight size={22} /></div>
                     <div className="relative">
-                        <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.2em] mb-1">Low Reserves</p>
-                        <p className="text-3xl font-heading font-bold text-[#0a4019] italic">{products.filter(p => p.stock > 0 && p.stock < 10).length} Lines</p>
+                        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Low stock</p>
+                        <p className="text-2xl font-black text-[#0F172A]">{products.filter(p => p.stock > 0 && p.stock < 10).length} products</p>
                     </div>
                 </div>
-                <div className="bg-white p-8 rounded-[2rem] border border-[#F5F3F0] shadow-[0_4px_20px_rgba(11,47,38,0.08)] flex items-center gap-6 relative overflow-hidden group text-[#0a4019]">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-green-50 rounded-full -mr-12 -mt-12 group-hover:bg-green-100 transition-colors" />
-                    <div className="p-4 bg-green-50 text-green-600 rounded-2xl shadow-inner relative"><CheckCircle size={28} /></div>
+                <div className="relative flex items-center gap-4 overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><CheckCircle size={22} /></div>
                     <div className="relative">
-                        <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.2em] mb-1">Optimal Tier</p>
-                        <p className="text-3xl font-heading font-bold text-[#0a4019] italic">{products.filter(p => p.stock >= 10).length} Lines</p>
+                        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Healthy stock</p>
+                        <p className="text-2xl font-black text-[#0F172A]">{products.filter(p => p.stock >= 10).length} products</p>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white rounded-[3rem] shadow-[0_16px_60px_rgba(11,47,38,0.15)] border border-[#F5F3F0] overflow-hidden">
-                <div className="p-8 border-b border-[#F5F3F0] bg-[#F5F3F0]/5">
+            <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
+                <div className="border-b border-[#E2E8F0] bg-[#F8FBFF] p-4">
                     <SearchBar
-                        placeholder="Interrogate SKU database..."
+                        placeholder="Search products or SKU..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="max-w-md shadow-inner"
+                        className="max-w-md"
                     />
                 </div>
-                <div className="p-4 md:p-8">
+                <div className="p-3 md:p-4">
                     <AdminTable
                         columns={[
                             {
                                 id: 'title',
-                                header: 'Assigned Asset',
+                                header: 'Product',
                                 cell: ({ row }) => (
                                     <div className="flex items-center gap-5">
                                         <div className="w-16 h-16 bg-neutral-100 rounded-2xl overflow-hidden relative border border-[#F5F3F0] shadow-inner">
@@ -279,29 +251,7 @@ export default function InventoryPage() {
             </div>
 
             {/* Delete Modal */}
-            {isDeleteModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a4019]/20 backdrop-blur-md">
-                    <div className="bg-white p-10 rounded-[2.5rem] shadow-[0_16px_60px_rgba(11,47,38,0.15)] max-w-md w-full mx-4 animate-scaleIn border border-[#FDFCFB] relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-red-500" />
-                        <h3 className="text-2xl font-heading font-bold text-[#0a4019] mb-3 italic">Decommission Asset?</h3>
-                        <p className="text-[#6B6B6B] mb-8 leading-relaxed font-medium">This action will permanently purge the item from the central inventory and storefront. This operation is irreversible.</p>
-                        <div className="flex gap-4">
-                            <button
-                                onClick={() => setIsDeleteModalOpen(false)}
-                                className="flex-1 py-4 border border-neutral-200 text-neutral-400 font-bold rounded-2xl hover:bg-neutral-50 transition-colors uppercase tracking-widest text-[10px]"
-                            >
-                                Abort
-                            </button>
-                            <button
-                                onClick={executeDelete}
-                                className="flex-1 py-4 bg-red-600 text-white font-bold rounded-2xl hover:bg-red-700 transition-shadow shadow-lg shadow-red-200 active:scale-95 uppercase tracking-widest text-[10px]"
-                            >
-                                Confirm Purge
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+            <ModalShell open={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Delete product from inventory?" description="The product will also be removed from the storefront." size="sm" footer={<><SecondaryButton onClick={() => setIsDeleteModalOpen(false)}>Cancel</SecondaryButton><button onClick={executeDelete} className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-700">Delete product</button></>}><p className="text-sm leading-6 text-[#475569]">This is permanent and cannot be undone. Historical order records are not affected.</p></ModalShell>
+        </SellerPageScaffold>
     );
 }
